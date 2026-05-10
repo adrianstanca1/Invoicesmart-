@@ -201,8 +201,14 @@ const History: React.FC<HistoryProps> = ({ invoices, onDelete }) => {
                   return (
                     <tr key={inv.id} className="hover:bg-slate-50 transition-colors group">
                       <td className="p-4 font-medium text-slate-900">
-                        <Link to={`/edit/${inv.id}`} className="hover:underline">
+                        <Link to={`/edit/${inv.id}`} className="hover:underline flex items-center gap-2">
                           {inv.invoiceNumber}
+                          {inv.isRecurring && (
+                            <i className="fas fa-sync-alt text-xs text-blue-500" title={`Recurring: ${inv.recurringFrequency}`}></i>
+                          )}
+                          {inv.parentInvoiceId && (
+                            <i className="fas fa-magic text-xs text-purple-500" title="Auto-generated recurring invoice"></i>
+                          )}
                         </Link>
                       </td>
                       <td className="p-4 text-slate-600">

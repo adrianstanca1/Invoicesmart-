@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Invoice } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import jsPDF from 'jspdf';
@@ -9,12 +9,25 @@ interface ReportsProps {
 }
 
 const Reports: React.FC<ReportsProps> = ({ invoices }) => {
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+
+  const filteredInvoices = useMemo(() => {
+    return invoices.filter(inv => {
+      if (!startDate && !endDate) return true;
+      const invDate = new Date(inv.date).getTime();
+      const start = startDate ? new Date(startDate).getTime() : -Infinity;
+      const end = endDate ? new Date(endDate).getTime() : Infinity;
+      return invDate >= start && invDate <= end;
+    });
+  }, [invoices, startDate, endDate]);
+
   const summary = useMemo(() => {
     let totalRevenue = 0;
     let totalTax = 0;
     let netRevenue = 0;
 
-    invoices.forEach(inv => {
+    filteredInvoices.forEach(inv => {
       const subtotal = inv.lineItems.reduce((acc, item) => acc + (item.quantity * item.rate), 0);
       const discount = subtotal * (inv.discountRate / 100);
       
@@ -32,12 +45,12 @@ const Reports: React.FC<ReportsProps> = ({ invoices }) => {
     });
 
     return { totalRevenue, totalTax, netRevenue };
-  }, [invoices]);
+  }, [filteredInvoices]);
 
   const monthlyData = useMemo(() => {
     const map = new Map<string, { revenue: number; tax: number }>();
     
-    invoices.forEach(inv => {
+    filteredInvoices.forEach(inv => {
       const date = new Date(inv.date || Date.now());
       const key = date.toLocaleString('default', { month: 'short', year: '2-digit' });
       
@@ -63,12 +76,12 @@ const Reports: React.FC<ReportsProps> = ({ invoices }) => {
       Revenue: data.revenue,
       Tax: data.tax
     }));
-  }, [invoices]);
+  }, [filteredInvoices]);
 
   const taxBreakdown = useMemo(() => {
     const map = new Map<string, number>();
     
-    invoices.forEach(inv => {
+    filteredInvoices.forEach(inv => {
       if (inv.reverseCharge) return;
       
       inv.lineItems.forEach(item => {
@@ -80,13 +93,13 @@ const Reports: React.FC<ReportsProps> = ({ invoices }) => {
     });
 
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
-  }, [invoices]);
+  }, [filteredInvoices]);
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
   const exportCSV = () => {
     const headers = ['Invoice #', 'Date', 'Client', 'Net', 'Tax', 'Total'];
-    const rows = invoices.map(inv => {
+    const rows = filteredInvoices.map(inv => {
       const subtotal = inv.lineItems.reduce((acc, item) => acc + (item.quantity * item.rate), 0);
       const discount = subtotal * (inv.discountRate / 100);
       let tax = 0;
@@ -144,7 +157,7 @@ const Reports: React.FC<ReportsProps> = ({ invoices }) => {
     doc.text(`Net Revenue (Excl. Tax): £${summary.netRevenue.toFixed(2)}`, 14, 72);
     doc.text(`Total Tax Liability: £${summary.totalTax.toFixed(2)}`, 14, 79);
 
-    const tableData = invoices.map(inv => {
+    const tableData = filteredInvoices.map(inv => {
       const subtotal = inv.lineItems.reduce((acc, item) => acc + (item.quantity * item.rate), 0);
       const discount = subtotal * (inv.discountRate / 100);
       let tax = 0;
@@ -189,6 +202,36 @@ const Reports: React.FC<ReportsProps> = ({ invoices }) => {
           </button>
           <button onClick={exportPDF} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-all">
             <i className="fas fa-file-pdf"></i> Export PDF
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex gap-4 items-end mb-8">
+        <div>
+          <label className="block text-sm font-medium text-slate-500 mb-1">Start Date</label>
+          <input 
+            type="date" 
+            className="border rounded px-3 py-2 text-slate-700"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-500 mb-1">End Date</label>
+          <input 
+            type="date" 
+            className="border rounded px-3 py-2 text-slate-700"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
+        </div>
+        <div className="ml-auto">
+          <button 
+            type="button" 
+            className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+            onClick={() => { setStartDate(''); setEndDate(''); }}
+          >
+            Clear Filters
           </button>
         </div>
       </div>
@@ -269,7 +312,14 @@ const Reports: React.FC<ReportsProps> = ({ invoices }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {invoices.map(inv => {
+              {filteredInvoices.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-slate-500">
+                    No invoices found for the selected date range.
+                  </td>
+                </tr>
+              ) : (
+                filteredInvoices.map(inv => {
                 const subtotal = inv.lineItems.reduce((acc, item) => acc + (item.quantity * item.rate), 0);
                 const discount = subtotal * (inv.discountRate / 100);
                 let tax = 0;
@@ -281,18 +331,19 @@ const Reports: React.FC<ReportsProps> = ({ invoices }) => {
                 }
                 const total = subtotal + tax - discount;
 
-                return (
-                  <tr key={inv.id} className="hover:bg-slate-50">
-                    <td className="p-4 font-medium text-slate-900">{inv.invoiceNumber}</td>
-                    <td className="p-4 text-slate-500">{inv.date}</td>
-                    <td className="p-4 text-slate-600">{inv.toName}</td>
-                    <td className="p-4 text-slate-600 text-right font-mono">£{(subtotal - discount).toFixed(2)}</td>
-                    <td className="p-4 text-orange-600 text-right font-mono">£{tax.toFixed(2)}</td>
-                    <td className="p-4 text-slate-900 text-right font-mono font-bold">£{total.toFixed(2)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
+  return (
+    <tr key={inv.id} className="hover:bg-slate-50">
+      <td className="p-4 font-medium text-slate-900">{inv.invoiceNumber}</td>
+      <td className="p-4 text-slate-500">{inv.date}</td>
+      <td className="p-4 text-slate-600">{inv.toName}</td>
+      <td className="p-4 text-slate-600 text-right font-mono">£{(subtotal - discount).toFixed(2)}</td>
+      <td className="p-4 text-orange-600 text-right font-mono">£{tax.toFixed(2)}</td>
+      <td className="p-4 text-slate-900 text-right font-mono font-bold">£{total.toFixed(2)}</td>
+    </tr>
+  );
+})
+)}
+</tbody>
           </table>
         </div>
       </div>

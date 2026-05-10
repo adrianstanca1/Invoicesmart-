@@ -271,7 +271,7 @@ export const parseInvoiceFromImage = async (base64Image: string): Promise<Partia
   }
 };
 
-export const auditInvoice = async (invoice: Invoice): Promise<string> => {
+export const auditInvoice = async (invoice: Invoice, taxRules: TaxRule[]): Promise<string> => {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -279,11 +279,13 @@ export const auditInvoice = async (invoice: Invoice): Promise<string> => {
       Check for:
       1. Missing critical information (HMRC requirements).
       2. Correct application of Reverse Charge / CIS if applicable (Construction).
-      3. Professionalism.
+      3. Potential tax implications of the line items, especially considering UK tax laws and the selected tax rules.
+      4. Professionalism.
       
+      Available Tax Rules: ${JSON.stringify(taxRules)}
       Invoice Data: ${JSON.stringify(invoice)}
       
-      Output plain text, bullet points. Keep it under 150 words.`,
+      Output plain text, bullet points. Keep it under 200 words.`,
     });
     return response.text || "No insights generated.";
   } catch (error) {

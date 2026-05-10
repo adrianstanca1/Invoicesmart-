@@ -53,6 +53,11 @@ export interface Invoice {
   retentionRate: number; // Percentage
   cisRate: number; // Percentage (e.g. 20% or 30%)
   template: 'modern' | 'classic' | 'minimal';
+  isRecurring?: boolean;
+  recurringFrequency?: 'weekly' | 'monthly' | 'yearly';
+  recurringEndDate?: string;
+  lastGeneratedDate?: string;
+  parentInvoiceId?: string;
 }
 
 export interface Transaction {
@@ -93,4 +98,15 @@ export interface FinancialInsight {
   summary: string;
   recommendations: string[];
   riskAssessment: string;
+}
+
+export interface AuditLog {
+  id: string;
+  timestamp: string;
+  user: string;
+  action: 'Created' | 'Updated' | 'Deleted' | 'Generated';
+  entityType: 'Invoice' | 'Client' | 'Transaction' | 'TaxRule';
+  entityId: string;
+  entityName: string; // e.g., Invoice Number or Client Name
+  details: string;
 }

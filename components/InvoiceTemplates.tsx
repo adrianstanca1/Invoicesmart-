@@ -79,9 +79,9 @@ export const ModernTemplate: React.FC<TemplateProps> = ({ invoice, calculations,
                 {item.description}
                 {invoice.cisRate > 0 && item.isLabor && <span className="ml-2 text-xs text-slate-400">(Labor)</span>}
               </td>
-              <td className="py-4 text-right text-slate-700">{item.quantity}</td>
-              <td className="py-4 text-right text-slate-700">{currencySymbol(invoice.currency)}{item.rate.toFixed(2)}</td>
-              <td className="py-4 text-right font-medium text-slate-800">{currencySymbol(invoice.currency)}{(item.quantity * item.rate).toFixed(2)}</td>
+              <td className="py-4 text-right text-slate-700">{Number(item.quantity) || ''}</td>
+              <td className="py-4 text-right text-slate-700">{currencySymbol(invoice.currency)}{(Number(item.rate) || 0).toFixed(2)}</td>
+              <td className="py-4 text-right font-medium text-slate-800">{currencySymbol(invoice.currency)}{((Number(item.quantity) || 0) * (Number(item.rate) || 0)).toFixed(2)}</td>
             </tr>
           ))}
         </tbody>
@@ -230,9 +230,9 @@ export const ClassicTemplate: React.FC<TemplateProps> = ({ invoice, calculations
                 {item.description}
                 {invoice.cisRate > 0 && item.isLabor && <span className="ml-2 text-xs italic text-slate-500">(Labor)</span>}
               </td>
-              <td className="py-3 px-4 text-center">{item.quantity}</td>
-              <td className="py-3 px-4 text-right">{currencySymbol(invoice.currency)}{item.rate.toFixed(2)}</td>
-              <td className="py-3 px-4 text-right font-semibold">{currencySymbol(invoice.currency)}{(item.quantity * item.rate).toFixed(2)}</td>
+              <td className="py-3 px-4 text-center">{Number(item.quantity) || ''}</td>
+              <td className="py-3 px-4 text-right">{currencySymbol(invoice.currency)}{(Number(item.rate) || 0).toFixed(2)}</td>
+              <td className="py-3 px-4 text-right font-semibold">{currencySymbol(invoice.currency)}{((Number(item.quantity) || 0) * (Number(item.rate) || 0)).toFixed(2)}</td>
             </tr>
           ))}
         </tbody>
@@ -367,10 +367,10 @@ export const MinimalTemplate: React.FC<TemplateProps> = ({ invoice, calculations
               {invoice.cisRate > 0 && item.isLabor && <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500">Labor</span>}
             </div>
             <div className="col-span-2 text-center text-slate-500">
-              {item.quantity} x {currencySymbol(invoice.currency)}{item.rate.toFixed(2)}
+              {Number(item.quantity) || ''} x {currencySymbol(invoice.currency)}{(Number(item.rate) || 0).toFixed(2)}
             </div>
             <div className="col-span-4 text-right font-bold text-lg">
-              {currencySymbol(invoice.currency)}{(item.quantity * item.rate).toFixed(2)}
+              {currencySymbol(invoice.currency)}{((Number(item.quantity) || 0) * (Number(item.rate) || 0)).toFixed(2)}
             </div>
           </div>
         ))}

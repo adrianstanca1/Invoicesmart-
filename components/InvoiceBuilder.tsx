@@ -186,20 +186,20 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
 
   const handleAudit = async () => {
     setIsAuditing(true);
-    const result = await auditInvoice(invoice);
+    const result = await auditInvoice(invoice, taxRules);
     setAuditResult(result);
     setIsAuditing(false);
   };
 
   // Calculations
-  const calculateSubtotal = () => invoice.lineItems.reduce((acc, item) => acc + (item.quantity * item.rate), 0);
-  const calculateLaborTotal = () => invoice.lineItems.filter(i => i.isLabor).reduce((acc, item) => acc + (item.quantity * item.rate), 0);
+  const calculateSubtotal = () => invoice.lineItems.reduce((acc, item) => acc + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0);
+  const calculateLaborTotal = () => invoice.lineItems.filter(i => i.isLabor).reduce((acc, item) => acc + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0);
   
   const calculateTaxBreakdown = () => {
     const breakdown: { [key: string]: { rate: number, amount: number, name: string } } = {};
     
     invoice.lineItems.forEach(item => {
-      const itemTotal = item.quantity * item.rate;
+      const itemTotal = (Number(item.quantity) || 0) * (Number(item.rate) || 0);
       let rate = invoice.taxRate; // Default to global rate
       let name = `VAT (${rate}%)`;
 
@@ -244,7 +244,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
      // Calculate theoretical tax
      let totalTheoreticalTax = 0;
      invoice.lineItems.forEach(item => {
-        const itemTotal = item.quantity * item.rate;
+        const itemTotal = (Number(item.quantity) || 0) * (Number(item.rate) || 0);
         let rate = invoice.taxRate;
         if (item.taxRuleId) {
           const rule = taxRules.find(r => r.id === item.taxRuleId);
@@ -406,25 +406,12 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
           <div className="flex justify-between items-center border-b pb-4">
             <h3 className="text-lg font-bold text-slate-700">Details</h3>
             <div className="flex gap-2">
-               <button onClick={handleAudit} className="text-indigo-600 hover:bg-indigo-50 px-3 py-1 rounded text-sm font-medium transition-colors">
-                 {isAuditing ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-clipboard-check"></i>} Audit
-               </button>
                <label className="text-slate-600 hover:bg-slate-50 px-3 py-1 rounded text-sm font-medium transition-colors cursor-pointer">
                  <i className="fas fa-image"></i> Logo
                  <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
                </label>
             </div>
           </div>
-
-          {auditResult && (
-            <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-sm text-yellow-800">
-              <div className="flex justify-between items-start mb-2">
-                <span className="font-bold"><i className="fas fa-clipboard-check"></i> AI Accountant Report</span>
-                <button onClick={() => setAuditResult(null)} className="text-yellow-600 hover:text-yellow-900"><i className="fas fa-times"></i></button>
-              </div>
-              <p className="whitespace-pre-line">{auditResult}</p>
-            </div>
-          )}
           
           {/* Status and Template Dropdowns */}
           <div className="flex justify-end gap-4">
@@ -501,6 +488,47 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
                 <option value="EUR">EUR (€)</option>
               </select>
             </div>
+          </div>
+
+          {/* Recurring Options */}
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+            <div className="flex items-center gap-2 mb-3">
+              <input 
+                type="checkbox" 
+                id="isRecurring" 
+                checked={!!invoice.isRecurring} 
+                onChange={e => handleChange('isRecurring', e.target.checked)}
+                className="w-4 h-4 text-blue-600 focus:ring-blue-500 rounded border-gray-300"
+              />
+              <label htmlFor="isRecurring" className="text-sm font-bold text-blue-800">
+                <i className="fas fa-sync-alt mr-1"></i> Make this a recurring invoice
+              </label>
+            </div>
+            {invoice.isRecurring && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                <div>
+                  <label className="text-xs text-blue-700">Frequency</label>
+                  <select 
+                    className="w-full border border-blue-200 rounded px-2 py-1 mt-1 bg-white" 
+                    value={invoice.recurringFrequency || 'monthly'} 
+                    onChange={e => handleChange('recurringFrequency', e.target.value)}
+                  >
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-blue-700">End Date</label>
+                  <input 
+                    type="date" 
+                    className="w-full border border-blue-200 rounded px-2 py-1 mt-1 bg-white" 
+                    value={invoice.recurringEndDate || ''} 
+                    onChange={e => handleChange('recurringEndDate', e.target.value)} 
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Construction Specifics */}
@@ -608,8 +636,8 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
                        />
                      </div>
                   )}
-                  <div className="w-20 py-1 text-right font-medium text-slate-600 text-sm">
-                    {(item.quantity * item.rate).toFixed(2)}
+                  <div className="w-24 py-1.5 px-2 text-right font-semibold text-slate-700 bg-slate-50 border border-slate-100 rounded text-sm flex items-center justify-end">
+                    {currencySymbol(invoice.currency)}{((Number(item.quantity) || 0) * (Number(item.rate) || 0)).toFixed(2)}
                   </div>
                   <button onClick={() => removeLineItem(item.id)} className="text-red-400 hover:text-red-600 p-1">
                     <i className="fas fa-trash"></i>
@@ -695,7 +723,27 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
 
         </div>
 
-        <div className="flex justify-end gap-3">
+        {/* AI Audit Result */}
+        {auditResult && (
+          <div className="bg-gradient-to-r from-purple-600 to-fuchsia-600 rounded-xl p-6 text-white shadow-md animate-fade-in transition-all">
+            <div className="flex justify-between items-start mb-4 border-b border-white/20 pb-2">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <i className="fas fa-clipboard-check"></i> AI Audit Report
+              </h3>
+              <button 
+                onClick={() => setAuditResult(null)} 
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="text-sm text-purple-50 whitespace-pre-line leading-relaxed">
+              {auditResult}
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3 flex-wrap">
           <button onClick={handleSendEmail} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
             <i className="fas fa-paper-plane mr-2"></i> Send Email
           </button>
@@ -704,6 +752,9 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
           </button>
           <button onClick={handleDownloadPDF} className="bg-rose-600 hover:bg-rose-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
             <i className="fas fa-file-pdf mr-2"></i> Download PDF
+          </button>
+          <button onClick={handleAudit} disabled={isAuditing} className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50">
+            {isAuditing ? <i className="fas fa-spinner fa-spin mr-2"></i> : <i className="fas fa-clipboard-check mr-2"></i>} AI Audit
           </button>
           <button onClick={saveInvoice} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
             <i className="fas fa-save mr-2"></i> Save

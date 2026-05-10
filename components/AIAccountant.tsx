@@ -46,13 +46,37 @@ const AIAccountant: React.FC<AIAccountantProps> = ({ invoices, clients, transact
           totalTransactions: transactions.length,
           taxRules: taxRules.map(r => `${r.name} (${r.rate}%)`).join(', ')
         },
-        recentInvoices: invoices.slice(0, 5).map(i => ({
-          number: i.invoiceNumber,
-          client: i.toName,
-          total: i.lineItems.reduce((acc, item) => acc + (item.quantity * item.rate), 0),
-          status: i.status
-        })),
-        recentTransactions: transactions.slice(0, 5)
+        recentInvoices: invoices.slice(0, 5).map(i => {
+          const subtotal = i.lineItems.reduce((acc, item) => acc + (item.quantity * item.rate), 0);
+          const vat = i.reverseCharge ? 0 : subtotal * (i.taxRate/100);
+          const discount = subtotal * (i.discountRate/100);
+          const total = subtotal + vat - discount;
+          
+          return {
+            number: i.invoiceNumber,
+            client: i.toName,
+            subtotal,
+            discountRate: i.discountRate,
+            discountAmount: discount,
+            taxRate: i.taxRate,
+            vatAmount: vat,
+            isReverseCharge: !!i.reverseCharge,
+            total,
+            status: i.status,
+            items: i.lineItems.map(li => ({
+              description: li.description,
+              quantity: li.quantity,
+              rate: li.rate
+            }))
+          };
+        }),
+        recentTransactions: transactions.slice(0, 5).map(t => ({
+          date: t.date,
+          description: t.description,
+          amount: t.amount,
+          type: t.type,
+          category: t.category
+        }))
       };
 
       const systemPrompt = `You are an expert AI Accountant for a small business. 
