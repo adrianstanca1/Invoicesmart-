@@ -696,18 +696,27 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
           <div>
             <h4 className="font-semibold text-slate-400 uppercase text-xs tracking-wider mb-2">Items</h4>
             <div className="space-y-2">
+              <div className="flex gap-2 px-1 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                <div className="flex-1">Description</div>
+                <div className="w-16 text-right">Qty</div>
+                <div className="w-20 text-right">Rate</div>
+                <div className="w-24">Tax</div>
+                <div className="w-16 text-center">Labor</div>
+                <div className="w-24 text-right">Amount</div>
+                <div className="w-6"></div>
+              </div>
               {invoice.lineItems.map((item) => {
                 const isInvalidQty = typeof item.quantity === 'number' && item.quantity < 0;
                 const isInvalidRate = typeof item.rate === 'number' && item.rate < 0;
                 
                 return (
-                <div key={item.id} className="flex flex-col gap-1">
-                  <div className="flex gap-2 items-start">
+                <div key={item.id} className="flex flex-col gap-1 group">
+                  <div className="flex gap-2 items-center bg-white p-1 rounded-lg border border-transparent hover:border-slate-200 transition-colors">
                   <div className="flex-1">
                     <input 
                       type="text" 
                       placeholder="Description" 
-                      className="w-full border rounded px-2 py-1"
+                      className="w-full border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-blue-50/30 px-2 py-1.5 transition-colors focus:outline-none"
                       value={item.description}
                       onChange={e => handleLineItemChange(item.id, 'description', e.target.value)}
                     />
@@ -716,7 +725,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
                     <input 
                       type="number" 
                       placeholder="Qty" 
-                      className={`w-full border rounded px-2 py-1 text-right ${isInvalidQty ? 'border-red-500 bg-red-50' : ''}`}
+                      className={`w-full border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-blue-50/30 px-2 py-1.5 text-right transition-colors focus:outline-none ${isInvalidQty ? 'border-red-500 bg-red-50' : ''}`}
                       value={Number.isNaN(item.quantity) ? '' : item.quantity}
                       onChange={e => {
                         const val = parseFloat(e.target.value);
@@ -728,7 +737,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
                     <input 
                       type="number" 
                       placeholder="Rate" 
-                      className={`w-full border rounded px-2 py-1 text-right ${isInvalidRate ? 'border-red-500 bg-red-50' : ''}`}
+                      className={`w-full border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-blue-50/30 px-2 py-1.5 text-right transition-colors focus:outline-none ${isInvalidRate ? 'border-red-500 bg-red-50' : ''}`}
                       value={Number.isNaN(item.rate) ? '' : item.rate}
                       onChange={e => {
                         const val = parseFloat(e.target.value);
@@ -739,7 +748,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
                   {/* Tax Rule Selector */}
                   <div className="w-24">
                     <select
-                      className="w-full border rounded px-1 py-1 text-xs"
+                      className="w-full border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-blue-50/30 px-1 py-1.5 text-xs transition-colors focus:outline-none"
                       value={item.taxRuleId || ''}
                       onChange={e => handleLineItemChange(item.id, 'taxRuleId', e.target.value)}
                     >
@@ -750,19 +759,18 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
                     </select>
                   </div>
                   {/* CIS Labor Checkbox */}
-                  <div className="w-16 flex flex-col justify-center items-center" title="Mark as Labor (for CIS deduction)">
-                    <label className="text-[10px] text-slate-500 font-medium">Labor</label>
+                  <div className="w-16 flex justify-center items-center" title="Mark as Labor (for CIS deduction)">
                     <input 
                       type="checkbox" 
-                      className="mt-0.5"
+                      className="w-4 h-4 text-blue-600 rounded cursor-pointer"
                       checked={item.isLabor === true} 
                       onChange={e => handleLineItemChange(item.id, 'isLabor', e.target.checked)}
                     />
                   </div>
-                  <div className="w-24 py-1.5 px-2 text-right font-semibold text-slate-700 bg-slate-50 border border-slate-100 rounded text-sm flex items-center justify-end">
+                  <div className="w-24 px-2 text-right font-semibold text-slate-700 text-sm flex items-center justify-end">
                     {currencySymbol(invoice.currency)}{((Number(item.quantity) || 0) * (Number(item.rate) || 0)).toFixed(2)}
                   </div>
-                  <button onClick={() => removeLineItem(item.id)} className="text-red-400 hover:text-red-600 p-1">
+                  <button onClick={() => removeLineItem(item.id)} className="text-slate-300 hover:text-red-600 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity w-6 flex justify-center">
                     <i className="fas fa-trash"></i>
                   </button>
                   </div>
@@ -774,7 +782,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
                   )}
                 </div>
               )})}
-              <button onClick={addLineItem} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mt-2">
+              <button onClick={addLineItem} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mt-2 px-1">
                 <i className="fas fa-plus"></i> Add Line Item
               </button>
             </div>
