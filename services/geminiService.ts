@@ -47,19 +47,17 @@ export const chatWithAccountant = async (
     };
 
     // Optimize data payload to save tokens
-    // Limit to last 50 transactions to prevent context window overflow
-    const recentLedger = ledger.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 50);
-    const simplifiedLedger = recentLedger.map(t => ({ d: t.date, desc: t.description, amt: t.amount, type: t.type, cat: t.category }));
-    const simplifiedInvoices = invoices.slice(0, 20).map(i => ({ d: i.date, tot: i.lineItems.reduce((a,b)=>a+b.quantity*b.rate,0), st: i.status }));
+    const simplifiedLedger = ledger.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(t => ({ d: t.date, desc: t.description, amt: t.amount, type: t.type, cat: t.category }));
+    const simplifiedInvoices = invoices.map(i => ({ d: i.date, num: i.invoiceNumber, client: i.toName, tot: i.lineItems.reduce((a,b)=>a+b.quantity*b.rate,0), st: i.status }));
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.1-pro-preview',
       contents: `You are an expert UK Chartered Accountant (ACCA/ICAEW level). 
       Your goal is to help the user manage their business finances, ensure compliance, and optimize tax.
       
-      Data Context (Recent):
-      - Ledger (Last 50): ${JSON.stringify(simplifiedLedger)}
-      - Invoices (Last 20): ${JSON.stringify(simplifiedInvoices)}
+      Data Context (All History):
+      - Ledger: ${JSON.stringify(simplifiedLedger)}
+      - Invoices: ${JSON.stringify(simplifiedInvoices)}
       
       User Message: "${message}"
       
@@ -139,6 +137,7 @@ const INVOICE_SCHEMA = {
     toName: { type: Type.STRING },
     toEmail: { type: Type.STRING },
     toAddress: { type: Type.STRING },
+    clientVatNumber: { type: Type.STRING },
     invoiceNumber: { type: Type.STRING },
     date: { type: Type.STRING },
     dueDate: { type: Type.STRING },
@@ -165,14 +164,26 @@ const INVOICE_SCHEMA = {
   },
 };
 
-export const generateInvoiceFromPrompt = async (prompt: string): Promise<Partial<Invoice> | null> => {
+export const generateInvoiceFromPrompt = async (prompt: string, existingInvoice?: Partial<Invoice>): Promise<Partial<Invoice> | null> => {
   try {
+    const today = new Date();
+    const defaultDueDate = new Date();
+    defaultDueDate.setDate(defaultDueDate.getDate() + 30);
+    
+    let contents = `Generate a JSON invoice structure based on this request: "${prompt}". 
+      Populate ALL possible fields including client details (name, email, address, client VAT number), line items (with description, quantity, and rate), and realistic estimates if exact prices aren't given.
+      If specific dates are not mentioned, use ${today.toISOString().split('T')[0]} for the invoice date and ${defaultDueDate.toISOString().split('T')[0]} for the due date.
+      Ensure the output matches the JSON schema provided.
+      For UK context, default currency to GBP if not specified.
+      Provide realistic placeholder names, emails, and addresses for 'from' and 'to' if the user doesn't specify them.`;
+
+    if (existingInvoice) {
+      contents += `\n\nExisting Invoice Data to modify/append to:\n${JSON.stringify(existingInvoice)}`;
+    }
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate a JSON invoice structure based on this request: "${prompt}". 
-      If specific details (dates, numbers) are missing, infer reasonable defaults or leave blank.
-      Ensure the output matches the JSON schema provided.
-      For UK context, default currency to GBP if not specified.`,
+      contents,
       config: {
         responseMimeType: "application/json",
         responseSchema: INVOICE_SCHEMA,
@@ -281,11 +292,13 @@ export const auditInvoice = async (invoice: Invoice, taxRules: TaxRule[]): Promi
       2. Correct application of Reverse Charge / CIS if applicable (Construction).
       3. Potential tax implications of the line items, especially considering UK tax laws and the selected tax rules.
       4. Professionalism.
+      5. Specific suggestions for improving line item descriptions for clarity and compliance.
+      6. Flag potential errors in calculations based on UK tax laws.
       
       Available Tax Rules: ${JSON.stringify(taxRules)}
       Invoice Data: ${JSON.stringify(invoice)}
       
-      Output plain text, bullet points. Keep it under 200 words.`,
+      Output plain text, bullet points. Keep it under 250 words.`,
     });
     return response.text || "No insights generated.";
   } catch (error) {

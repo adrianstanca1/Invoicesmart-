@@ -6,6 +6,7 @@ import { ModernTemplate, ClassicTemplate, MinimalTemplate } from './InvoiceTempl
 interface InvoiceBuilderProps {
   onSave: (invoice: Invoice) => void;
   initialInvoice?: Invoice;
+  initialInvoiceNumber?: string;
   clients: Client[];
   taxRules: TaxRule[];
 }
@@ -31,17 +32,27 @@ const EmptyInvoice: Invoice = {
   reverseCharge: false,
   retentionRate: 0,
   cisRate: 0,
-  template: 'modern'
+  template: 'modern',
+  paymentGateway: 'none',
+  paymentLinkId: ''
 };
 
-const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice, clients, taxRules }) => {
+const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice, initialInvoiceNumber, clients, taxRules }) => {
   // If initialInvoice is provided, use it. Otherwise, create a new ID for a potential new draft.
-  const [invoice, setInvoice] = useState<Invoice>(initialInvoice || { ...EmptyInvoice, id: crypto.randomUUID() });
+  const [invoice, setInvoice] = useState<Invoice>(initialInvoice || { ...EmptyInvoice, invoiceNumber: initialInvoiceNumber || EmptyInvoice.invoiceNumber, id: crypto.randomUUID() });
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [apiKeys, setApiKeys] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('appSettings') || localStorage.getItem('paymentApiKeys') || '{}');
+    } catch {
+      return {};
+    }
+  });
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,9 +63,9 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
       setInvoice(initialInvoice);
     } else {
        // Reset to empty if no initialInvoice (e.g. clicking "Create" new)
-       setInvoice({ ...EmptyInvoice, id: crypto.randomUUID() });
+       setInvoice({ ...EmptyInvoice, invoiceNumber: initialInvoiceNumber || EmptyInvoice.invoiceNumber, id: crypto.randomUUID() });
     }
-  }, [initialInvoice]);
+  }, [initialInvoice, initialInvoiceNumber]);
 
   // Auto-save Logic
   useEffect(() => {
@@ -68,6 +79,14 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
 
     return () => clearTimeout(timer);
   }, [invoice, saveStatus, onSave]);
+
+  const handleSaveApiKeys = (keys: any) => {
+    setApiKeys(keys);
+    localStorage.setItem('appSettings', JSON.stringify(keys));
+    // also persist to paymentApiKeys for backward compatibility if needed, or just keep appSettings
+    localStorage.setItem('paymentApiKeys', JSON.stringify(keys));
+    setIsSettingsOpen(false);
+  };
 
   const handleChange = (field: keyof Invoice, value: any) => {
     setInvoice(prev => ({ ...prev, [field]: value }));
@@ -169,11 +188,16 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
   const handleAIMagic = async () => {
     if (!prompt.trim()) return;
     setIsGenerating(true);
-    const generatedData = await generateInvoiceFromPrompt(prompt);
+    const generatedData = await generateInvoiceFromPrompt(prompt, invoice);
     if (generatedData) {
       setInvoice(prev => ({
         ...prev,
         ...generatedData,
+        id: prev.id, // Ensure we don't accidentally overwrite the internal ID
+        status: prev.status, // Preserve current status
+        invoiceNumber: generatedData.invoiceNumber || prev.invoiceNumber,
+        date: generatedData.date || prev.date,
+        dueDate: generatedData.dueDate || prev.dueDate,
         lineItems: generatedData.lineItems 
           ? generatedData.lineItems.map(li => ({ ...li, id: crypto.randomUUID() })) as LineItem[]
           : prev.lineItems
@@ -193,7 +217,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
 
   // Calculations
   const calculateSubtotal = () => invoice.lineItems.reduce((acc, item) => acc + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0);
-  const calculateLaborTotal = () => invoice.lineItems.filter(i => i.isLabor).reduce((acc, item) => acc + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0);
+  const calculateLaborTotal = () => invoice.lineItems.filter(i => i.isLabor === true).reduce((acc, item) => acc + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0);
   
   const calculateTaxBreakdown = () => {
     const breakdown: { [key: string]: { rate: number, amount: number, name: string } } = {};
@@ -315,6 +339,17 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
       alert('Please add at least one line item.');
       return;
     }
+    
+    // Validate line items
+    const hasInvalidItems = invoice.lineItems.some(item => 
+      (typeof item.quantity === 'number' && item.quantity < 0) || 
+      (typeof item.rate === 'number' && item.rate < 0)
+    );
+    if (hasInvalidItems) {
+      alert('Please ensure all line item quantities and rates are positive numbers.');
+      return;
+    }
+
     onSave(invoice);
     setSaveStatus('saved');
     alert('Invoice saved successfully!');
@@ -329,6 +364,23 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
     }
   };
 
+  const generatePaymentLink = () => {
+    if (!invoice.paymentGateway || invoice.paymentGateway === 'none') return null;
+    
+    if (invoice.paymentGateway === 'stripe') {
+      return invoice.paymentLinkId || null;
+    }
+    
+    if (invoice.paymentGateway === 'paypal') {
+      const amount = calculateAmountDue().toFixed(2);
+      const email = invoice.paymentLinkId ? encodeURIComponent(invoice.paymentLinkId) : encodeURIComponent(invoice.fromEmail);
+      if (!email || email === 'undefined') return null;
+      return `https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=${email}&amount=${amount}&currency_code=${invoice.currency}&item_name=${encodeURIComponent('Invoice ' + invoice.invoiceNumber)}`;
+    }
+    
+    return null;
+  };
+
   const handleSendEmail = () => {
     if (!invoice.toEmail) {
       alert('Please enter a client email address first.');
@@ -338,12 +390,29 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
     const subject = `Invoice ${invoice.invoiceNumber} from ${invoice.fromName}`;
     const amount = calculateAmountDue().toFixed(2);
     const symbol = currencySymbol(invoice.currency);
-    const body = `Hi ${invoice.toName},\n\nPlease find attached invoice #${invoice.invoiceNumber} for ${symbol}${amount}.\n\nTotal Due: ${symbol}${amount}\nDue Date: ${invoice.dueDate}\n\nThank you for your business.\n\nBest regards,\n${invoice.fromName}`;
+    
+    let paymentText = '';
+    const paymentLink = generatePaymentLink();
+    if (paymentLink) {
+      paymentText = `\n\nYou can pay this invoice online securely here:\n${paymentLink}\n`;
+    }
+    
+    const body = `Hi ${invoice.toName},\n\nPlease find attached invoice #${invoice.invoiceNumber} for ${symbol}${amount}.\n\nTotal Due: ${symbol}${amount}\nDue Date: ${invoice.dueDate}${paymentText}\n\nThank you for your business.\n\nBest regards,\n${invoice.fromName}`;
     
     window.location.href = `mailto:${invoice.toEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     
     // Update status to Sent and trigger auto-save
     handleChange('status', 'Sent');
+  };
+
+  const handleCopyPaymentLink = () => {
+    const link = generatePaymentLink();
+    if (link) {
+      navigator.clipboard.writeText(link);
+      alert('Payment link copied to clipboard!');
+    } else {
+      alert('Please configure your payment gateway and ID/Email first.');
+    }
   };
 
   return (
@@ -353,7 +422,16 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
         
         {/* Header with Save Status */}
         <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-slate-700">Invoice Editor</h2>
+            <div className="flex items-center gap-4">
+              <h2 className="text-xl font-bold text-slate-700">Invoice Editor</h2>
+              <button 
+                onClick={() => setIsSettingsOpen(true)}
+                className="text-slate-500 hover:text-indigo-600 transition-colors"
+                title="Integration Settings"
+              >
+                <i className="fas fa-cog"></i>
+              </button>
+            </div>
             <div className="text-sm font-medium">
                 {saveStatus === 'saving' && <span className="text-blue-600"><i className="fas fa-sync fa-spin mr-1"></i> Auto-saving...</span>}
                 {saveStatus === 'saved' && <span className="text-green-600"><i className="fas fa-check mr-1"></i> All changes saved</span>}
@@ -372,7 +450,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
                 type="text" 
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe invoice (e.g. 'Install 5 windows for London Client £500')"
+                placeholder="e.g., 'Invoice Acme Corp (VAT: GB12345) at 123 Main St for 5 windows at £100 each and 2 hours of labor at £50/hr'"
                 className="flex-1 px-4 py-2 rounded-lg text-slate-800 focus:outline-none"
                 onKeyDown={(e) => e.key === 'Enter' && handleAIMagic()}
               />
@@ -531,6 +609,46 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
             )}
           </div>
 
+          {/* Payment Integration */}
+          <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
+            <h4 className="text-sm font-bold text-emerald-800 mb-3 flex items-center gap-2">
+              <i className="fas fa-credit-card"></i> Payment Integration
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-emerald-700">Payment Gateway</label>
+                <select 
+                  className="w-full border border-emerald-200 rounded px-2 py-1 mt-1 bg-white" 
+                  value={invoice.paymentGateway || 'none'} 
+                  onChange={e => handleChange('paymentGateway', e.target.value)}
+                >
+                  <option value="none">None</option>
+                  <option value="paypal">PayPal</option>
+                  <option value="stripe">Stripe</option>
+                </select>
+              </div>
+              {invoice.paymentGateway && invoice.paymentGateway !== 'none' && (
+                <div>
+                  <label className="text-xs text-emerald-700">
+                    {invoice.paymentGateway === 'paypal' ? 'PayPal Email Address' : 'Stripe Payment Link'}
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder={invoice.paymentGateway === 'paypal' ? 'hello@company.com' : 'https://buy.stripe.com/...'}
+                    className="w-full border border-emerald-200 rounded px-2 py-1 mt-1 bg-white" 
+                    value={invoice.paymentLinkId || ''} 
+                    onChange={e => handleChange('paymentLinkId', e.target.value)} 
+                  />
+                  {invoice.paymentGateway === 'stripe' && (
+                    <p className="text-[10px] text-emerald-600 mt-1">
+                      Paste your pre-configured Stripe Payment Link.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Construction Specifics */}
           <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
             <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
@@ -578,8 +696,13 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
           <div>
             <h4 className="font-semibold text-slate-400 uppercase text-xs tracking-wider mb-2">Items</h4>
             <div className="space-y-2">
-              {invoice.lineItems.map((item) => (
-                <div key={item.id} className="flex gap-2 items-start">
+              {invoice.lineItems.map((item) => {
+                const isInvalidQty = typeof item.quantity === 'number' && item.quantity < 0;
+                const isInvalidRate = typeof item.rate === 'number' && item.rate < 0;
+                
+                return (
+                <div key={item.id} className="flex flex-col gap-1">
+                  <div className="flex gap-2 items-start">
                   <div className="flex-1">
                     <input 
                       type="text" 
@@ -593,7 +716,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
                     <input 
                       type="number" 
                       placeholder="Qty" 
-                      className="w-full border rounded px-2 py-1 text-right"
+                      className={`w-full border rounded px-2 py-1 text-right ${isInvalidQty ? 'border-red-500 bg-red-50' : ''}`}
                       value={Number.isNaN(item.quantity) ? '' : item.quantity}
                       onChange={e => {
                         const val = parseFloat(e.target.value);
@@ -605,7 +728,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
                     <input 
                       type="number" 
                       placeholder="Rate" 
-                      className="w-full border rounded px-2 py-1 text-right"
+                      className={`w-full border rounded px-2 py-1 text-right ${isInvalidRate ? 'border-red-500 bg-red-50' : ''}`}
                       value={Number.isNaN(item.rate) ? '' : item.rate}
                       onChange={e => {
                         const val = parseFloat(e.target.value);
@@ -642,8 +765,15 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
                   <button onClick={() => removeLineItem(item.id)} className="text-red-400 hover:text-red-600 p-1">
                     <i className="fas fa-trash"></i>
                   </button>
+                  </div>
+                  {(isInvalidQty || isInvalidRate) && (
+                    <div className="text-red-500 text-[10px] pl-1 font-medium">
+                      <i className="fas fa-exclamation-circle mr-1"></i>
+                      Quantity and rate must be valid, positive numbers.
+                    </div>
+                  )}
                 </div>
-              ))}
+              )})}
               <button onClick={addLineItem} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mt-2">
                 <i className="fas fa-plus"></i> Add Line Item
               </button>
@@ -744,6 +874,11 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
         )}
 
         <div className="flex justify-end gap-3 flex-wrap">
+          {(invoice.status === 'Sent' || invoice.status === 'Paid') && (
+            <button onClick={handleCopyPaymentLink} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+              <i className="fas fa-link mr-2"></i> Payment Link
+            </button>
+          )}
           <button onClick={handleSendEmail} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
             <i className="fas fa-paper-plane mr-2"></i> Send Email
           </button>
@@ -818,6 +953,116 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
           )}
         </div>
       </div>
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full overflow-hidden animate-fade-in">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-bold text-lg text-slate-800"><i className="fas fa-cog text-slate-400 mr-2"></i> Integration Settings</h3>
+              <button onClick={() => setIsSettingsOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              {/* Invoice Number Generation */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-slate-700 flex items-center gap-2">
+                  <i className="fas fa-hashtag text-slate-500"></i> Invoice Number Generation
+                </h4>
+                <p className="text-xs text-slate-500">Customize how new invoice numbers are created.</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Prefix</label>
+                    <input 
+                      type="text" 
+                      className="w-full border rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white transition-colors" 
+                      placeholder="INV-"
+                      value={apiKeys.invoicePrefix || ''}
+                      onChange={e => setApiKeys({ ...apiKeys, invoicePrefix: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex flex-col justify-center pt-5">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={apiKeys.autoIncrement !== false} 
+                        onChange={e => setApiKeys({ ...apiKeys, autoIncrement: e.target.checked })}
+                      />
+                      <span className="text-sm text-slate-700 font-medium">Auto-increment</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <hr className="border-slate-100" />
+
+              {/* Stripe Config */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-slate-700 flex items-center gap-2">
+                  <i className="fab fa-stripe text-indigo-500 text-xl"></i> Stripe Integration
+                </h4>
+                <p className="text-xs text-slate-500">Configure your Stripe API keys to generate secure checkout sessions.</p>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Publishable Key</label>
+                  <input 
+                    type="text" 
+                    className="w-full border rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white transition-colors" 
+                    placeholder="pk_test_..."
+                    value={apiKeys.stripePublishableKey || ''}
+                    onChange={e => setApiKeys({ ...apiKeys, stripePublishableKey: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Secret Key</label>
+                  <input 
+                    type="password" 
+                    className="w-full border rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white transition-colors" 
+                    placeholder="sk_test_..."
+                    value={apiKeys.stripeSecretKey || ''}
+                    onChange={e => setApiKeys({ ...apiKeys, stripeSecretKey: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <hr className="border-slate-100" />
+
+              {/* PayPal Config */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-slate-700 flex items-center gap-2">
+                  <i className="fab fa-paypal text-blue-500 text-xl"></i> PayPal Integration
+                </h4>
+                <p className="text-xs text-slate-500">Configure your PayPal Client ID for instant payments.</p>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Client ID</label>
+                  <input 
+                    type="password" 
+                    className="w-full border rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white transition-colors" 
+                    placeholder="Enter PayPal Client ID"
+                    value={apiKeys.paypalClientId || ''}
+                    onChange={e => setApiKeys({ ...apiKeys, paypalClientId: e.target.value })}
+                  />
+                </div>
+              </div>
+
+            </div>
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              <button 
+                className="px-4 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-200 transition-colors"
+                onClick={() => setIsSettingsOpen(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="px-6 py-2 rounded-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
+                onClick={() => handleSaveApiKeys(apiKeys)}
+              >
+                Save Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

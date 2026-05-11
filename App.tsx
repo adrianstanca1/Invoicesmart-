@@ -104,6 +104,43 @@ const App: React.FC = () => {
     }, ...prev]);
   };
 
+  const getNextInvoiceNumber = (invoices: Invoice[]): string => {
+    let settings: any = {};
+    try {
+      settings = JSON.parse(localStorage.getItem('appSettings') || localStorage.getItem('paymentApiKeys') || '{}');
+    } catch {
+      // ignore
+    }
+
+    const customPrefix = settings.invoicePrefix || 'INV-';
+    const autoIncrement = settings.autoIncrement !== false; // default true
+
+    if (!autoIncrement) {
+      return `${customPrefix}`;
+    }
+
+    if (invoices.length === 0) return `${customPrefix}001`;
+    
+    // Simple approach: look at the last invoice added
+    const lastInvoice = invoices[invoices.length - 1];
+    let prefixToUse = customPrefix;
+    let fallbackFormat = `${customPrefix}001`;
+
+    const match = lastInvoice.invoiceNumber.match(/(.*?)(\d+)$/);
+    
+    if (match) {
+      // If we want to strictly use the new custom prefix, we replace the old prefix.
+      // But we should use the number from the last invoice!
+      const numberStr = match[2];
+      const nextNumber = parseInt(numberStr, 10) + 1;
+      const paddedNumber = nextNumber.toString().padStart(numberStr.length, '0');
+      return `${prefixToUse}${paddedNumber}`;
+    }
+    
+    // Output fallback if it doesn't end with numbers
+    return fallbackFormat;
+  };
+
   const handleSaveInvoice = (invoice: Invoice) => {
     setInvoices(prev => {
       const index = prev.findIndex(i => i.id === invoice.id);
@@ -300,7 +337,7 @@ const App: React.FC = () => {
         <NavBar />
         <Routes>
           <Route path="/" element={<Dashboard invoices={invoices} clients={clients} transactions={transactions} taxRules={taxRules} />} />
-          <Route path="/create" element={<InvoiceBuilder onSave={handleSaveInvoice} clients={clients} taxRules={taxRules} />} />
+          <Route path="/create" element={<InvoiceBuilder onSave={handleSaveInvoice} clients={clients} taxRules={taxRules} initialInvoiceNumber={getNextInvoiceNumber(invoices)} />} />
           <Route path="/edit/:id" element={
             <InvoiceWrapper invoices={invoices} onSave={handleSaveInvoice} clients={clients} taxRules={taxRules} />
           } />

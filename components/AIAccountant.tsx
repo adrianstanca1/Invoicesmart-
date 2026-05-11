@@ -46,7 +46,7 @@ const AIAccountant: React.FC<AIAccountantProps> = ({ invoices, clients, transact
           totalTransactions: transactions.length,
           taxRules: taxRules.map(r => `${r.name} (${r.rate}%)`).join(', ')
         },
-        recentInvoices: invoices.slice(0, 5).map(i => {
+        recentInvoices: invoices.map(i => {
           const subtotal = i.lineItems.reduce((acc, item) => acc + (item.quantity * item.rate), 0);
           const vat = i.reverseCharge ? 0 : subtotal * (i.taxRate/100);
           const discount = subtotal * (i.discountRate/100);
@@ -63,6 +63,7 @@ const AIAccountant: React.FC<AIAccountantProps> = ({ invoices, clients, transact
             isReverseCharge: !!i.reverseCharge,
             total,
             status: i.status,
+            date: i.date,
             items: i.lineItems.map(li => ({
               description: li.description,
               quantity: li.quantity,
@@ -70,7 +71,7 @@ const AIAccountant: React.FC<AIAccountantProps> = ({ invoices, clients, transact
             }))
           };
         }),
-        recentTransactions: transactions.slice(0, 5).map(t => ({
+        recentTransactions: transactions.map(t => ({
           date: t.date,
           description: t.description,
           amount: t.amount,

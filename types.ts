@@ -48,6 +48,10 @@ export interface Invoice {
   logo?: string; // Base64 string
   status: 'Draft' | 'Sent' | 'Paid' | 'Overdue';
   
+  // Payment Integration
+  paymentGateway?: 'stripe' | 'paypal' | 'none';
+  paymentLinkId?: string; // email for paypal, or link for stripe
+  
   // UK / Construction Specifics
   reverseCharge: boolean;
   retentionRate: number; // Percentage
