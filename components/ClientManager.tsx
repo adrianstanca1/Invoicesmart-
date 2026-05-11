@@ -9,6 +9,7 @@ interface ClientManagerProps {
 
 const ClientManager: React.FC<ClientManagerProps> = ({ clients, onSaveClient, onDeleteClient }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [filterIndustry, setFilterIndustry] = useState<string>('All');
   const [currentClient, setCurrentClient] = useState<Client>({
     id: '',
     name: '',
@@ -17,14 +18,15 @@ const ClientManager: React.FC<ClientManagerProps> = ({ clients, onSaveClient, on
     address: '',
     vatNumber: '',
     notes: '',
-    defaultTerms: ''
+    defaultTerms: '',
+    industry: ''
   });
 
   const handleEdit = (client?: Client) => {
     if (client) {
       setCurrentClient(client);
     } else {
-      setCurrentClient({ id: crypto.randomUUID(), name: '', email: '', phone: '', address: '', vatNumber: '', notes: '', defaultTerms: '' });
+      setCurrentClient({ id: crypto.randomUUID(), name: '', email: '', phone: '', address: '', vatNumber: '', notes: '', defaultTerms: '', industry: '' });
     }
     setIsEditing(true);
   };
@@ -35,16 +37,36 @@ const ClientManager: React.FC<ClientManagerProps> = ({ clients, onSaveClient, on
     setIsEditing(false);
   };
 
+  const uniqueIndustries = Array.from(new Set(clients.map(c => c.industry).filter(Boolean))) as string[];
+  const filteredClients = filterIndustry === 'All' 
+    ? clients 
+    : clients.filter(c => c.industry === filterIndustry);
+
   return (
     <div className="p-8 max-w-5xl mx-auto animate-fade-in">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
         <h2 className="text-3xl font-bold text-slate-800">Client Management</h2>
-        <button 
-          onClick={() => handleEdit()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
-        >
-          <i className="fas fa-user-plus"></i> Add Client
-        </button>
+        
+        <div className="flex items-center gap-4">
+          {uniqueIndustries.length > 0 && (
+            <select 
+              className="border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700"
+              value={filterIndustry}
+              onChange={(e) => setFilterIndustry(e.target.value)}
+            >
+              <option value="All">All Industries</option>
+              {uniqueIndustries.map(ind => (
+                <option key={ind} value={ind}>{ind}</option>
+              ))}
+            </select>
+          )}
+          <button 
+            onClick={() => handleEdit()}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+          >
+            <i className="fas fa-user-plus"></i> Add Client
+          </button>
+        </div>
       </div>
 
       {isEditing && (
@@ -100,6 +122,16 @@ const ClientManager: React.FC<ClientManagerProps> = ({ clients, onSaveClient, on
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Industry / Tag</label>
+                <input 
+                  type="text" 
+                  className="w-full border rounded-lg px-3 py-2"
+                  value={currentClient.industry || ''}
+                  onChange={e => setCurrentClient({...currentClient, industry: e.target.value})}
+                  placeholder="e.g. Technology, Retail"
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Default Payment Terms</label>
                 <textarea 
                   className="w-full border rounded-lg px-3 py-2"
@@ -140,13 +172,13 @@ const ClientManager: React.FC<ClientManagerProps> = ({ clients, onSaveClient, on
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {clients.length === 0 ? (
+        {filteredClients.length === 0 ? (
           <div className="col-span-full text-center py-12 text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">
             <i className="fas fa-users text-4xl mb-4"></i>
-            <p>No clients added yet.</p>
+            <p>No clients found.</p>
           </div>
         ) : (
-          clients.map(client => (
+          filteredClients.map(client => (
             <div key={client.id} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow group">
               <div className="flex justify-between items-start mb-4">
                 <div className="h-12 w-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 text-xl font-bold">
@@ -163,6 +195,13 @@ const ClientManager: React.FC<ClientManagerProps> = ({ clients, onSaveClient, on
               </div>
               <h3 className="font-bold text-lg text-slate-800 mb-1">{client.name}</h3>
               <div className="space-y-2 text-sm text-slate-600">
+                {client.industry && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-medium tracking-wide">
+                      {client.industry}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <i className="fas fa-envelope w-4"></i> {client.email || '-'}
                 </div>

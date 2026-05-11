@@ -666,7 +666,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
                 <label htmlFor="reverseCharge" className="text-sm text-slate-700">VAT Reverse Charge</label>
               </div>
               <div className="flex items-center gap-2">
-                <label className="text-sm text-slate-700 whitespace-nowrap">Retention %</label>
+                <label className="text-sm text-slate-700 whitespace-nowrap">Retention Rate %</label>
                 <input 
                   type="number" 
                   className="w-full border rounded px-2 py-1 text-sm" 
@@ -750,15 +750,15 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
                     </select>
                   </div>
                   {/* CIS Labor Checkbox */}
-                  {invoice.cisRate > 0 && (
-                     <div className="w-8 flex justify-center pt-2" title="Is Labor?">
-                       <input 
-                         type="checkbox" 
-                         checked={item.isLabor} 
-                         onChange={e => handleLineItemChange(item.id, 'isLabor', e.target.checked)}
-                       />
-                     </div>
-                  )}
+                  <div className="w-16 flex flex-col justify-center items-center" title="Mark as Labor (for CIS deduction)">
+                    <label className="text-[10px] text-slate-500 font-medium">Labor</label>
+                    <input 
+                      type="checkbox" 
+                      className="mt-0.5"
+                      checked={item.isLabor === true} 
+                      onChange={e => handleLineItemChange(item.id, 'isLabor', e.target.checked)}
+                    />
+                  </div>
                   <div className="w-24 py-1.5 px-2 text-right font-semibold text-slate-700 bg-slate-50 border border-slate-100 rounded text-sm flex items-center justify-end">
                     {currencySymbol(invoice.currency)}{((Number(item.quantity) || 0) * (Number(item.rate) || 0)).toFixed(2)}
                   </div>

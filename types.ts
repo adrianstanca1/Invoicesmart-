@@ -14,6 +14,7 @@ export interface Client {
   vatNumber?: string;
   notes?: string;
   defaultTerms?: string;
+  industry?: string;
 }
 
 export interface LineItem {
