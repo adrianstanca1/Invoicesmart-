@@ -39,13 +39,39 @@ const AIAccountant: React.FC<AIAccountantProps> = ({ invoices, clients, transact
 
     try {
       // Prepare context
+      const currentYear = new Date().getFullYear();
+      
+      const monthlyRevenue = new Array(12).fill(0);
+      const monthlyExpenses = new Array(12).fill(0);
+      
+      transactions.forEach(t => {
+        const date = new Date(t.date);
+        if (date.getFullYear() === currentYear) {
+          const month = date.getMonth();
+          if (t.type.toLowerCase() === 'income') {
+            monthlyRevenue[month] += t.amount;
+          } else if (t.type.toLowerCase() === 'expense') {
+            monthlyExpenses[month] += t.amount;
+          }
+        }
+      });
+      
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthlyBreakdown = months.map((month, idx) => ({
+        month,
+        revenue: monthlyRevenue[idx],
+        expenses: monthlyExpenses[idx]
+      })).filter(m => m.revenue > 0 || m.expenses > 0);
+
       const context = {
         summary: {
           totalInvoices: invoices.length,
           totalClients: clients.length,
           totalTransactions: transactions.length,
-          taxRules: taxRules.map(r => `${r.name} (${r.rate}%)`).join(', ')
+          activeTaxRules: taxRules.map(r => `${r.name} (${r.rate}%)`).join(', '),
+          currentYear
         },
+        monthlyBreakdown,
         recentInvoices: invoices.map(i => {
           const subtotal = i.lineItems.reduce((acc, item) => acc + (item.quantity * item.rate), 0);
           const vat = i.reverseCharge ? 0 : subtotal * (i.taxRate/100);
