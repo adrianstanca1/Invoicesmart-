@@ -9,6 +9,7 @@ interface ClientManagerProps {
 
 const ClientManager: React.FC<ClientManagerProps> = ({ clients, onSaveClient, onDeleteClient }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<string | null>(null);
   const [filterIndustry, setFilterIndustry] = useState<string>('All');
   const [currentClient, setCurrentClient] = useState<Client>({
     id: '',
@@ -188,7 +189,7 @@ const ClientManager: React.FC<ClientManagerProps> = ({ clients, onSaveClient, on
                   <button onClick={() => handleEdit(client)} className="text-blue-600 hover:bg-blue-50 p-2 rounded">
                     <i className="fas fa-edit"></i>
                   </button>
-                  <button onClick={() => onDeleteClient(client.id)} className="text-red-500 hover:bg-red-50 p-2 rounded">
+                  <button onClick={() => setClientToDelete(client.id)} className="text-red-500 hover:bg-red-50 p-2 rounded">
                     <i className="fas fa-trash"></i>
                   </button>
                 </div>
@@ -200,6 +201,12 @@ const ClientManager: React.FC<ClientManagerProps> = ({ clients, onSaveClient, on
                     <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-medium tracking-wide">
                       {client.industry}
                     </span>
+                  </div>
+                )}
+                {client.vatNumber && (
+                  <div className="flex items-center gap-2">
+                    <i className="fas fa-file-invoice w-4 text-slate-400"></i>
+                    VAT: {client.vatNumber}
                   </div>
                 )}
                 <div className="flex items-center gap-2">
@@ -222,6 +229,35 @@ const ClientManager: React.FC<ClientManagerProps> = ({ clients, onSaveClient, on
           ))
         )}
       </div>
+
+      {clientToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm text-center">
+            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+              <i className="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 className="text-xl font-bold mb-2">Delete Client</h3>
+            <p className="text-slate-600 mb-6">Are you sure you want to delete this client? This action cannot be undone.</p>
+            <div className="flex justify-center gap-3">
+              <button 
+                onClick={() => setClientToDelete(null)}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg flex-1 font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  if (clientToDelete) onDeleteClient(clientToDelete);
+                  setClientToDelete(null);
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex-1 font-medium transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

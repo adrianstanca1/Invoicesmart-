@@ -47,6 +47,7 @@ export interface Invoice {
   taxRate: number;
   discountRate: number;
   logo?: string; // Base64 string
+  brandColor?: string; // Hex color code
   status: 'Draft' | 'Sent' | 'Paid' | 'Overdue';
   
   // Payment Integration

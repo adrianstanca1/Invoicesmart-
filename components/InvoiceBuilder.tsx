@@ -27,6 +27,7 @@ const EmptyInvoice: Invoice = {
   terms: 'Payment due within 30 days.',
   currency: 'GBP',
   taxRate: 20,
+  brandColor: '#2563eb',
   discountRate: 0,
   status: 'Draft',
   reverseCharge: false,
@@ -195,6 +196,9 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
         ...generatedData,
         id: prev.id, // Ensure we don't accidentally overwrite the internal ID
         status: prev.status, // Preserve current status
+        template: prev.template, // Preserve visual choices
+        logo: prev.logo,
+        brandColor: prev.brandColor,
         invoiceNumber: generatedData.invoiceNumber || prev.invoiceNumber,
         date: generatedData.date || prev.date,
         dueDate: generatedData.dueDate || prev.dueDate,
@@ -203,6 +207,8 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
           : prev.lineItems
       }));
       setSaveStatus('unsaved');
+    } else {
+      alert("Failed to generate invoice details from prompt. Please try again.");
     }
     setIsGenerating(false);
     setPrompt('');
@@ -215,16 +221,17 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
     setIsAuditing(false);
   };
 
-  // Calculations
-  const calculateSubtotal = () => invoice.lineItems.reduce((acc, item) => acc + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0);
-  const calculateLaborTotal = () => invoice.lineItems.filter(i => i.isLabor === true).reduce((acc, item) => acc + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0);
-  
-  const calculateTaxBreakdown = () => {
-    const breakdown: { [key: string]: { rate: number, amount: number, name: string } } = {};
+  // Calculations memoized to optimize rendering
+  const calculations = React.useMemo(() => {
+    const subtotal = invoice.lineItems.reduce((acc, item) => acc + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0);
+    const laborSubtotal = invoice.lineItems.filter(i => i.isLabor === true).reduce((acc, item) => acc + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0);
     
+    const taxBreakdown: { [key: string]: { rate: number, amount: number, name: string } } = {};
+    let totalTheoreticalTax = 0;
+
     invoice.lineItems.forEach(item => {
       const itemTotal = (Number(item.quantity) || 0) * (Number(item.rate) || 0);
-      let rate = invoice.taxRate; // Default to global rate
+      let rate = invoice.taxRate;
       let name = `VAT (${rate}%)`;
 
       if (item.taxRuleId) {
@@ -238,71 +245,39 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
         name = `VAT (${rate}%)`;
       }
 
-      if (invoice.reverseCharge) {
-        rate = 0; // No tax charged on invoice
-      }
+      totalTheoreticalTax += itemTotal * (rate / 100);
 
-      const taxAmount = itemTotal * (rate / 100);
+      const effectiveRate = invoice.reverseCharge ? 0 : rate;
+      const taxAmount = itemTotal * (effectiveRate / 100);
       
-      if (breakdown[name]) {
-        breakdown[name].amount += taxAmount;
+      if (taxBreakdown[name]) {
+        taxBreakdown[name].amount += taxAmount;
       } else {
-        breakdown[name] = { rate, amount: taxAmount, name };
+        taxBreakdown[name] = { rate: effectiveRate, amount: taxAmount, name };
       }
     });
 
-    return breakdown;
-  };
+    const tax = Object.values(taxBreakdown).reduce((acc, item) => acc + item.amount, 0);
+    const reverseChargeVAT = invoice.reverseCharge ? totalTheoreticalTax : 0;
+    const discount = subtotal * (invoice.discountRate / 100);
+    const retention = subtotal * (invoice.retentionRate / 100);
+    const cis = laborSubtotal * (invoice.cisRate / 100);
+    const total = subtotal + tax - discount;
+    const amountDue = total - retention - cis;
 
-  const calculateTotalTax = () => {
-    const breakdown = calculateTaxBreakdown();
-    return Object.values(breakdown).reduce((acc, item) => acc + item.amount, 0);
-  };
-  
-  const calculateReverseChargeVAT = (subtotal: number) => {
-     // If reverse charge is active, we calculate what the VAT WOULD be
-     // This is usually just the standard rate on the whole subtotal, or sum of item rates
-     // For simplicity, let's assume standard rate if not specified per item, but we should probably sum it up
-     if (!invoice.reverseCharge) return 0;
-     
-     // Calculate theoretical tax
-     let totalTheoreticalTax = 0;
-     invoice.lineItems.forEach(item => {
-        const itemTotal = (Number(item.quantity) || 0) * (Number(item.rate) || 0);
-        let rate = invoice.taxRate;
-        if (item.taxRuleId) {
-          const rule = taxRules.find(r => r.id === item.taxRuleId);
-          if (rule) rate = rule.rate;
-        } else if (item.taxRate !== undefined) {
-          rate = item.taxRate;
-        }
-        totalTheoreticalTax += itemTotal * (rate / 100);
-     });
-     return totalTheoreticalTax;
-  };
-  
-  const calculateDiscount = (subtotal: number) => subtotal * (invoice.discountRate / 100);
-  
-  const calculateRetention = (subtotal: number) => subtotal * (invoice.retentionRate / 100);
-  
-  const calculateCIS = () => {
-    const labor = calculateLaborTotal();
-    return labor * (invoice.cisRate / 100);
-  };
-
-  const calculateTotal = () => {
-    const sub = calculateSubtotal();
-    const tax = calculateTotalTax();
-    const discount = calculateDiscount(sub);
-    return sub + tax - discount;
-  };
-
-  const calculateAmountDue = () => {
-    const total = calculateTotal();
-    const retention = calculateRetention(calculateSubtotal());
-    const cis = calculateCIS();
-    return total - retention - cis;
-  };
+    return {
+      subtotal,
+      laborSubtotal,
+      taxBreakdown,
+      tax,
+      reverseChargeVAT,
+      discount,
+      retention,
+      cis,
+      total,
+      amountDue
+    };
+  }, [invoice, taxRules]);
 
   const handlePrint = () => {
     window.print();
@@ -372,7 +347,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
     }
     
     if (invoice.paymentGateway === 'paypal') {
-      const amount = calculateAmountDue().toFixed(2);
+      const amount = calculations.amountDue.toFixed(2);
       const email = invoice.paymentLinkId ? encodeURIComponent(invoice.paymentLinkId) : encodeURIComponent(invoice.fromEmail);
       if (!email || email === 'undefined') return null;
       return `https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=${email}&amount=${amount}&currency_code=${invoice.currency}&item_name=${encodeURIComponent('Invoice ' + invoice.invoiceNumber)}`;
@@ -388,7 +363,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
     }
     
     const subject = `Invoice ${invoice.invoiceNumber} from ${invoice.fromName}`;
-    const amount = calculateAmountDue().toFixed(2);
+    const amount = calculations.amountDue.toFixed(2);
     const symbol = currencySymbol(invoice.currency);
     
     let paymentText = '';
@@ -483,8 +458,17 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-6">
           <div className="flex justify-between items-center border-b pb-4">
             <h3 className="text-lg font-bold text-slate-700">Details</h3>
-            <div className="flex gap-2">
-               <label className="text-slate-600 hover:bg-slate-50 px-3 py-1 rounded text-sm font-medium transition-colors cursor-pointer">
+            <div className="flex gap-4 items-center">
+               <div className="flex items-center gap-2">
+                 <label className="text-xs font-semibold text-slate-500 uppercase">Brand Color:</label>
+                 <input 
+                   type="color" 
+                   value={invoice.brandColor || '#2563eb'}
+                   onChange={(e) => handleChange('brandColor', e.target.value)}
+                   className="w-6 h-6 p-0 border-0 rounded cursor-pointer"
+                 />
+               </div>
+               <label className="text-slate-600 hover:bg-slate-50 px-3 py-1 rounded text-sm font-medium transition-colors cursor-pointer border border-slate-200">
                  <i className="fas fa-image"></i> Logo
                  <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
                </label>
@@ -803,11 +787,11 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
             <div className="space-y-2 bg-slate-50 p-4 rounded-lg">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Subtotal</span>
-                <span>{calculateSubtotal().toFixed(2)}</span>
+                <span>{calculations.subtotal.toFixed(2)}</span>
               </div>
               
               {/* Dynamic Tax Breakdown */}
-              {Object.values(calculateTaxBreakdown()).map((tax, idx) => (
+              {Object.values(calculations.taxBreakdown).map((tax, idx) => (
                 <div key={idx} className="flex justify-between items-center text-sm">
                   <span className="text-slate-500">{tax.name} {invoice.reverseCharge && '(Rev. Chg)'}</span>
                   <span>{invoice.reverseCharge ? '0.00' : tax.amount.toFixed(2)}</span>
@@ -831,7 +815,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
               {invoice.discountRate > 0 && (
                 <div className="flex justify-between items-center text-sm text-green-600">
                   <span>Discount ({invoice.discountRate}%)</span>
-                  <span>-{calculateDiscount(calculateSubtotal()).toFixed(2)}</span>
+                  <span>-{calculations.discount.toFixed(2)}</span>
                 </div>
               )}
 
@@ -841,20 +825,20 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
               {invoice.retentionRate > 0 && (
                  <div className="flex justify-between items-center text-sm text-amber-700">
                   <span>Less Retention ({invoice.retentionRate}%)</span>
-                  <span>-{calculateRetention(calculateSubtotal()).toFixed(2)}</span>
+                  <span>-{calculations.retention.toFixed(2)}</span>
                 </div>
               )}
                
               {invoice.cisRate > 0 && (
                  <div className="flex justify-between items-center text-sm text-amber-700">
                   <span>Less CIS ({invoice.cisRate}%)</span>
-                  <span>-{calculateCIS().toFixed(2)}</span>
+                  <span>-{calculations.cis.toFixed(2)}</span>
                 </div>
               )}
 
               <div className="flex justify-between font-bold text-lg pt-2 border-t border-slate-200">
                 <span>Amount Due</span>
-                <span>{currencySymbol(invoice.currency)}{calculateAmountDue().toFixed(2)}</span>
+                <span>{currencySymbol(invoice.currency)}{calculations.amountDue.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -905,57 +889,68 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({ onSave, initialInvoice,
         </div>
       </div>
 
-      {/* RIGHT COLUMN: PREVIEW (Printable) */}
-      <div className="w-full xl:w-[800px] shrink-0">
-        <div id="invoice-preview">
+      {/* RIGHT COLUMN: PREVIEW PANE */}
+      <div className="w-full xl:w-[800px] shrink-0 no-print xl:sticky xl:top-8 self-start">
+        <div className="bg-slate-100 rounded-2xl p-4 md:p-8 flex flex-col items-center border border-slate-200 h-[calc(100vh-4rem)] overflow-hidden">
+          <div className="flex justify-between items-center w-full max-w-[210mm] mb-4 shrink-0">
+            <h2 className="text-xl font-bold text-slate-700 flex items-center gap-2">
+              <i className="fas fa-eye text-indigo-500"></i> Live Preview
+            </h2>
+            <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-2 shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Auto-updating
+            </div>
+          </div>
+          
+          <div className="overflow-auto w-full flex justify-center custom-scrollbar pb-12">
+            <div className="shadow-2xl bg-white w-full max-w-[210mm] min-h-[297mm] transition-all transform origin-top shrink-0 text-left border border-slate-200">
+              {(!invoice.template || invoice.template === 'modern') && (
+                <ModernTemplate 
+                  invoice={invoice} 
+                  calculations={calculations}
+                  currencySymbol={currencySymbol}
+                />
+              )}
+              {invoice.template === 'classic' && (
+                <ClassicTemplate 
+                  invoice={invoice} 
+                  calculations={calculations}
+                  currencySymbol={currencySymbol}
+                />
+              )}
+              {invoice.template === 'minimal' && (
+                <MinimalTemplate 
+                  invoice={invoice} 
+                  calculations={calculations}
+                  currencySymbol={currencySymbol}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* OFF-SCREEN PRINT/PDF TARGET */}
+      <div className="absolute top-0 left-[-9999px] w-[210mm] print:static print:w-full print:block">
+        <div id="invoice-preview" className="bg-white w-[210mm]">
           {(!invoice.template || invoice.template === 'modern') && (
             <ModernTemplate 
               invoice={invoice} 
-              calculations={{
-                subtotal: calculateSubtotal(),
-                tax: calculateTotalTax(),
-                discount: calculateDiscount(calculateSubtotal()),
-                total: calculateTotal(),
-                amountDue: calculateAmountDue(),
-                retention: calculateRetention(calculateSubtotal()),
-                cis: calculateCIS(),
-                reverseChargeVAT: calculateReverseChargeVAT(calculateSubtotal()),
-                taxBreakdown: calculateTaxBreakdown()
-              }}
+              calculations={calculations}
               currencySymbol={currencySymbol}
             />
           )}
           {invoice.template === 'classic' && (
             <ClassicTemplate 
               invoice={invoice} 
-              calculations={{
-                subtotal: calculateSubtotal(),
-                tax: calculateTotalTax(),
-                discount: calculateDiscount(calculateSubtotal()),
-                total: calculateTotal(),
-                amountDue: calculateAmountDue(),
-                retention: calculateRetention(calculateSubtotal()),
-                cis: calculateCIS(),
-                reverseChargeVAT: calculateReverseChargeVAT(calculateSubtotal()),
-                taxBreakdown: calculateTaxBreakdown()
-              }}
+              calculations={calculations}
               currencySymbol={currencySymbol}
             />
           )}
           {invoice.template === 'minimal' && (
             <MinimalTemplate 
               invoice={invoice} 
-              calculations={{
-                subtotal: calculateSubtotal(),
-                tax: calculateTotalTax(),
-                discount: calculateDiscount(calculateSubtotal()),
-                total: calculateTotal(),
-                amountDue: calculateAmountDue(),
-                retention: calculateRetention(calculateSubtotal()),
-                cis: calculateCIS(),
-                reverseChargeVAT: calculateReverseChargeVAT(calculateSubtotal()),
-                taxBreakdown: calculateTaxBreakdown()
-              }}
+              calculations={calculations}
               currencySymbol={currencySymbol}
             />
           )}

@@ -29,7 +29,7 @@ export const ModernTemplate: React.FC<TemplateProps> = ({ invoice, calculations,
               <i className="fas fa-image text-2xl"></i>
             </div>
           )}
-          <h1 className="text-4xl font-light text-slate-900 mb-1">INVOICE</h1>
+          <h1 className="text-4xl font-light mb-1" style={{ color: invoice.brandColor || '#0f172a' }}>INVOICE</h1>
           <p className="text-slate-500 font-medium">#{invoice.invoiceNumber}</p>
         </div>
         <div className="text-right w-1/2">
@@ -65,25 +65,30 @@ export const ModernTemplate: React.FC<TemplateProps> = ({ invoice, calculations,
 
       <table className="w-full mb-8">
         <thead>
-          <tr className="border-b-2 border-slate-100">
-            <th className="text-left py-3 text-sm font-bold text-slate-600 uppercase tracking-wider">Description</th>
-            <th className="text-right py-3 text-sm font-bold text-slate-600 uppercase tracking-wider w-24">Qty</th>
-            <th className="text-right py-3 text-sm font-bold text-slate-600 uppercase tracking-wider w-32">Rate</th>
-            <th className="text-right py-3 text-sm font-bold text-slate-600 uppercase tracking-wider w-32">Amount</th>
+          <tr className="border-b-2" style={{ borderColor: invoice.brandColor || '#f1f5f9' }}>
+            <th className="text-left py-3 text-sm font-bold uppercase tracking-wider" style={{ color: invoice.brandColor || '#475569' }}>Description</th>
+            <th className="text-right py-3 text-sm font-bold uppercase tracking-wider w-24" style={{ color: invoice.brandColor || '#475569' }}>Qty</th>
+            <th className="text-right py-3 text-sm font-bold uppercase tracking-wider w-32" style={{ color: invoice.brandColor || '#475569' }}>Rate</th>
+            <th className="text-right py-3 text-sm font-bold uppercase tracking-wider w-32" style={{ color: invoice.brandColor || '#475569' }}>Amount</th>
+            <th className="text-right py-3 text-sm font-bold uppercase tracking-wider w-24" style={{ color: invoice.brandColor || '#475569' }}>Tax</th>
           </tr>
         </thead>
         <tbody>
-          {invoice.lineItems.map((item) => (
-            <tr key={item.id} className="border-b border-slate-5">
+          {invoice.lineItems.map((item) => {
+            const itemTaxRate = item.taxRate !== undefined ? item.taxRate : invoice.taxRate;
+            const taxAmountString = itemTaxRate > 0 ? `${itemTaxRate}%` : '0%';
+            return (
+            <tr key={item.id} className="border-b border-slate-50">
               <td className="py-4 text-slate-700">
-                {item.description}
-                {invoice.cisRate > 0 && item.isLabor && <span className="ml-2 text-xs text-slate-400">(Labor)</span>}
+                <div className="font-medium text-slate-800">{item.description}</div>
+                {invoice.cisRate > 0 && item.isLabor && <span className="text-xs text-slate-400 mt-1 inline-block bg-slate-100 px-1.5 py-0.5 rounded">Labor (CIS)</span>}
               </td>
               <td className="py-4 text-right text-slate-700">{Number(item.quantity) || ''}</td>
               <td className="py-4 text-right text-slate-700">{currencySymbol(invoice.currency)}{(Number(item.rate) || 0).toFixed(2)}</td>
               <td className="py-4 text-right font-medium text-slate-800">{currencySymbol(invoice.currency)}{((Number(item.quantity) || 0) * (Number(item.rate) || 0)).toFixed(2)}</td>
+              <td className="py-4 text-right text-xs text-slate-500">{invoice.reverseCharge ? 'Rev Chg' : taxAmountString}</td>
             </tr>
-          ))}
+          )})}
         </tbody>
       </table>
 
@@ -137,7 +142,7 @@ export const ModernTemplate: React.FC<TemplateProps> = ({ invoice, calculations,
             </div>
           )}
 
-          <div className="flex justify-between font-bold text-2xl text-slate-900 border-t-2 border-slate-100 pt-3">
+          <div className="flex justify-between font-bold text-2xl border-t-2 pt-3" style={{ color: invoice.brandColor || '#0f172a', borderColor: invoice.brandColor || '#f1f5f9' }}>
             <span>Amount Due</span>
             <span>{currencySymbol(invoice.currency)}{calculations.amountDue.toFixed(2)}</span>
           </div>
@@ -179,11 +184,11 @@ export const ModernTemplate: React.FC<TemplateProps> = ({ invoice, calculations,
 export const ClassicTemplate: React.FC<TemplateProps> = ({ invoice, calculations, currencySymbol }) => {
   return (
     <div className="bg-white shadow-lg min-h-[1000px] p-12 md:p-16 relative print-only font-serif text-slate-800">
-      <div className="text-center mb-12 border-b-2 border-slate-800 pb-8">
+      <div className="text-center mb-12 border-b-2 pb-8" style={{ borderColor: invoice.brandColor || '#1e293b' }}>
         {invoice.logo && (
           <img src={invoice.logo} alt="Logo" className="h-24 object-contain mx-auto mb-6" />
         )}
-        <h1 className="text-5xl font-bold text-slate-900 mb-2 tracking-tight uppercase">Invoice</h1>
+        <h1 className="text-5xl font-bold mb-2 tracking-tight uppercase" style={{ color: invoice.brandColor || '#0f172a' }}>Invoice</h1>
         <h3 className="text-xl font-semibold">{invoice.fromName || 'Your Company'}</h3>
         <p className="text-slate-600 whitespace-pre-line">{invoice.fromAddress}</p>
         <p className="text-slate-600">{invoice.fromEmail}</p>
@@ -195,6 +200,9 @@ export const ClassicTemplate: React.FC<TemplateProps> = ({ invoice, calculations
           <h3 className="text-lg font-semibold">{invoice.toName || 'Client Name'}</h3>
           <p className="whitespace-pre-line text-slate-700">{invoice.toAddress}</p>
           <p className="text-slate-700">{invoice.toEmail}</p>
+          {invoice.clientVatNumber && (
+            <p className="text-slate-700">VAT: {invoice.clientVatNumber}</p>
+          )}
         </div>
         <div className="w-1/3">
           <div className="flex justify-between border-b border-slate-200 py-1">
@@ -221,20 +229,25 @@ export const ClassicTemplate: React.FC<TemplateProps> = ({ invoice, calculations
             <th className="text-center py-3 px-4 font-bold text-slate-800 w-20">Qty</th>
             <th className="text-right py-3 px-4 font-bold text-slate-800 w-32">Rate</th>
             <th className="text-right py-3 px-4 font-bold text-slate-800 w-32">Amount</th>
+            <th className="text-right py-3 px-4 font-bold text-slate-800 w-24">Tax</th>
           </tr>
         </thead>
         <tbody>
-          {invoice.lineItems.map((item) => (
+          {invoice.lineItems.map((item) => {
+            const itemTaxRate = item.taxRate !== undefined ? item.taxRate : invoice.taxRate;
+            const taxAmountString = itemTaxRate > 0 ? `${itemTaxRate}%` : '0%';
+            return (
             <tr key={item.id} className="border-b border-slate-200">
               <td className="py-3 px-4">
-                {item.description}
-                {invoice.cisRate > 0 && item.isLabor && <span className="ml-2 text-xs italic text-slate-500">(Labor)</span>}
+                <div className="font-medium text-slate-900">{item.description}</div>
+                {invoice.cisRate > 0 && item.isLabor && <span className="text-xs italic text-slate-500 mt-1 inline-block">Labor (CIS applied)</span>}
               </td>
               <td className="py-3 px-4 text-center">{Number(item.quantity) || ''}</td>
               <td className="py-3 px-4 text-right">{currencySymbol(invoice.currency)}{(Number(item.rate) || 0).toFixed(2)}</td>
               <td className="py-3 px-4 text-right font-semibold">{currencySymbol(invoice.currency)}{((Number(item.quantity) || 0) * (Number(item.rate) || 0)).toFixed(2)}</td>
+              <td className="py-3 px-4 text-right text-sm text-slate-600">{invoice.reverseCharge ? 'Rev Chg' : taxAmountString}</td>
             </tr>
-          ))}
+          )})}
         </tbody>
       </table>
 
@@ -323,7 +336,7 @@ export const ClassicTemplate: React.FC<TemplateProps> = ({ invoice, calculations
 
 export const MinimalTemplate: React.FC<TemplateProps> = ({ invoice, calculations, currencySymbol }) => {
   return (
-    <div className="bg-white shadow-lg min-h-[1000px] p-12 relative print-only font-sans text-slate-900">
+    <div className="bg-white shadow-lg min-h-[1000px] p-12 relative print-only font-sans text-slate-900 border-t-8" style={{ borderColor: invoice.brandColor || '#0f172a' }}>
       <div className="flex justify-between items-end mb-16">
         <div>
           {invoice.logo && (
@@ -332,7 +345,7 @@ export const MinimalTemplate: React.FC<TemplateProps> = ({ invoice, calculations
           <h1 className="text-3xl font-bold tracking-tight">{invoice.fromName || 'Your Company'}</h1>
         </div>
         <div className="text-right">
-          <h2 className="text-6xl font-black text-slate-100 tracking-tighter">INVOICE</h2>
+          <h2 className="text-6xl font-black tracking-tighter" style={{ color: invoice.brandColor || '#f1f5f9' }}>INVOICE</h2>
         </div>
       </div>
 
@@ -342,6 +355,9 @@ export const MinimalTemplate: React.FC<TemplateProps> = ({ invoice, calculations
           <p className="font-medium text-lg">{invoice.toName}</p>
           <p className="text-slate-500 whitespace-pre-line">{invoice.toAddress}</p>
           <p className="text-slate-500">{invoice.toEmail}</p>
+          {invoice.clientVatNumber && (
+            <p className="text-slate-500">VAT: {invoice.clientVatNumber}</p>
+          )}
         </div>
         <div>
           <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Invoice No.</h4>
@@ -360,20 +376,25 @@ export const MinimalTemplate: React.FC<TemplateProps> = ({ invoice, calculations
       </div>
 
       <div className="mb-12">
-        {invoice.lineItems.map((item) => (
+        {invoice.lineItems.map((item) => {
+          const itemTaxRate = item.taxRate !== undefined ? item.taxRate : invoice.taxRate;
+          const taxAmountString = itemTaxRate > 0 ? `${itemTaxRate}%` : '0%';
+          return (
           <div key={item.id} className="grid grid-cols-12 gap-4 py-4 border-b border-slate-100 items-center">
-            <div className="col-span-6">
+            <div className="col-span-1 border-r border-slate-100 text-slate-400 text-sm">{Number(item.quantity) || ''}</div>
+            <div className="col-span-6 pl-4">
               <p className="font-medium text-lg">{item.description}</p>
-              {invoice.cisRate > 0 && item.isLabor && <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500">Labor</span>}
+              {invoice.cisRate > 0 && item.isLabor && <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500 mt-1 inline-block">Labor (CIS applied)</span>}
             </div>
-            <div className="col-span-2 text-center text-slate-500">
-              {Number(item.quantity) || ''} x {currencySymbol(invoice.currency)}{(Number(item.rate) || 0).toFixed(2)}
+            <div className="col-span-2 text-right text-slate-500">
+              {currencySymbol(invoice.currency)}{(Number(item.rate) || 0).toFixed(2)}
+              <div className="text-xs mt-1">{invoice.reverseCharge ? 'Rev Chg' : taxAmountString}</div>
             </div>
-            <div className="col-span-4 text-right font-bold text-lg">
+            <div className="col-span-3 text-right font-bold text-lg">
               {currencySymbol(invoice.currency)}{((Number(item.quantity) || 0) * (Number(item.rate) || 0)).toFixed(2)}
             </div>
           </div>
-        ))}
+        )})}
       </div>
 
       <div className="flex justify-end mb-16">
@@ -426,13 +447,31 @@ export const MinimalTemplate: React.FC<TemplateProps> = ({ invoice, calculations
           <h4 className="font-bold text-slate-900 mb-2">Payment Details</h4>
           <p className="whitespace-pre-line">{invoice.terms || 'Payment due on receipt.'}</p>
         </div>
-        <div>
-          <h4 className="font-bold text-slate-900 mb-2">From</h4>
-          <p className="font-medium text-slate-900">{invoice.fromName}</p>
-          <p className="whitespace-pre-line">{invoice.fromAddress}</p>
-          <p>{invoice.fromEmail}</p>
-        </div>
+        {invoice.notes && (
+          <div>
+            <h4 className="font-bold text-slate-900 mb-2">Notes</h4>
+            <p className="whitespace-pre-line">{invoice.notes}</p>
+          </div>
+        )}
+        {!invoice.notes && (
+          <div>
+            <h4 className="font-bold text-slate-900 mb-2">From</h4>
+            <p className="font-medium text-slate-900">{invoice.fromName}</p>
+            <p className="whitespace-pre-line">{invoice.fromAddress}</p>
+            <p>{invoice.fromEmail}</p>
+          </div>
+        )}
       </div>
+      {invoice.notes && (
+        <div className="mt-12 pt-6 border-t border-slate-100 grid grid-cols-2 gap-12 text-sm text-slate-500">
+           <div className="col-start-2">
+            <h4 className="font-bold text-slate-900 mb-2">From</h4>
+            <p className="font-medium text-slate-900">{invoice.fromName}</p>
+            <p className="whitespace-pre-line">{invoice.fromAddress}</p>
+            <p>{invoice.fromEmail}</p>
+          </div>
+        </div>
+      )}
       
       {invoice.reverseCharge && (
         <div className="mt-12 text-xs text-slate-400 uppercase tracking-widest text-center">
