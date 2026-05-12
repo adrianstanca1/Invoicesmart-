@@ -401,12 +401,16 @@ export const generateFinancialInsights = async (
         })),
       )}
       
-      Provide a JSON response with:
-      1. summary: A brief summary of financial health and cash flow.
-      2. recommendations: A list of actionable recommendations. You MUST include suggestions regarding clients with overdue ("Overdue") payments (identify them by name if possible), and identify invoice patterns that could be optimized. Mention CIS/VAT if relevant.
-      3. riskAssessment: A brief risk assessment based on overdue concentration and tax compliance.
+      Provide a JSON response containing an object with:
+      1. \`summary\`: A brief summary of financial health and cash flow.
+      2. \`recommendations\`: An array of objects, where each object has:
+         - \`type\`: strictly one of "overdue", "optimization", "general", or "tax".
+         - \`title\`: A short, catchy title for the recommendation.
+         - \`description\`: Detailed explanation, identifying specific clients by name (for overdue payments) and specific invoice patterns for cash flow optimization.
+         - \`actionableStep\`: A clear, direct action the user should take.
+      3. \`riskAssessment\`: A brief risk assessment based on overdue concentration and tax compliance.
       
-      Only output valid JSON matching the format. Do not wrap in markdown \`\`\` blocks.`;
+      Only output valid JSON matching this structure. Do not wrap in markdown \`\`\` blocks.`;
 
     const responseText = await invokeLLM(prompt, true);
     if (!responseText) return null;

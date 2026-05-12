@@ -330,29 +330,36 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </p>
                 <div className="space-y-3">
                   {insight.recommendations.map((rec, idx) => {
-                    const isOverdue =
-                      rec.toLowerCase().includes("overdue") ||
-                      rec.toLowerCase().includes("late");
-                    const isOptimize =
-                      rec.toLowerCase().includes("optimize") ||
-                      rec.toLowerCase().includes("pattern") ||
-                      rec.toLowerCase().includes("cycle");
+                    const isOverdue = rec.type === "overdue";
+                    const isOptimize = rec.type === "optimization";
+                    const isTax = rec.type === "tax";
 
                     return (
                       <div
                         key={idx}
-                        className="bg-white/80 p-3 rounded-lg backdrop-blur-sm border border-white flex items-start gap-3 shadow-sm"
+                        className="bg-white/80 p-4 rounded-xl backdrop-blur-sm border border-white flex items-start gap-3 shadow-sm transition-all hover:shadow-md"
                       >
                         <div
-                          className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${isOverdue ? "bg-red-100 text-red-600" : isOptimize ? "bg-blue-100 text-blue-600" : "bg-green-100 text-green-600"}`}
+                          className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isOverdue ? "bg-red-100 text-red-600" : isOptimize ? "bg-blue-100 text-blue-600" : isTax ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"}`}
                         >
                           <i
-                            className={`fas ${isOverdue ? "fa-exclamation-triangle" : isOptimize ? "fa-lightbulb" : "fa-check"} text-xs`}
+                            className={`fas ${isOverdue ? "fa-exclamation-triangle" : isOptimize ? "fa-chart-line" : isTax ? "fa-file-invoice-dollar" : "fa-lightbulb"} text-sm`}
                           ></i>
                         </div>
-                        <p className="text-sm text-slate-700 leading-relaxed">
-                          {rec}
-                        </p>
+                        <div className="flex-1">
+                          <h4 className="text-sm font-bold text-slate-800 mb-1">
+                            {rec.title}
+                          </h4>
+                          <p className="text-sm text-slate-600 leading-relaxed mb-2">
+                            {rec.description}
+                          </p>
+                          <div className="bg-slate-50/50 p-2 rounded-lg border border-slate-100 flex items-start gap-2">
+                            <i className="fas fa-arrow-right text-indigo-400 mt-0.5 text-xs"></i>
+                            <p className="text-sm font-medium text-indigo-700">
+                              {rec.actionableStep}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     );
                   })}

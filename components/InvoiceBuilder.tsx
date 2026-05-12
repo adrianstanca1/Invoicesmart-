@@ -958,10 +958,15 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                 const isInvalidRate =
                   typeof item.rate === "number" && item.rate < 0;
 
+                const suggestionData = auditResult?.lineItemSuggestions.find(
+                  (s) => s.id === item.id,
+                );
+                const hasSuggestion = suggestionData && item.description !== suggestionData.suggestedDescription;
+
                 return (
                   <div key={item.id} className="flex flex-col gap-1 group">
-                    <div className="flex gap-2 items-center bg-white p-1 rounded-lg border border-transparent hover:border-slate-200 transition-colors">
-                      <div className="flex-1 relative flex items-center bg-white rounded-lg border border-transparent hover:border-slate-200 transition-colors focus-within:border-blue-500 focus-within:bg-blue-50/30">
+                    <div className={`flex gap-2 items-center p-1 rounded-lg border transition-colors ${hasSuggestion ? "bg-blue-50/50 border-blue-200" : "bg-white border-transparent hover:border-slate-200"}`}>
+                      <div className={`flex-1 relative flex items-center bg-white rounded-lg border transition-colors focus-within:border-blue-500 focus-within:bg-blue-50/30 ${hasSuggestion ? "border-blue-300 ring-2 ring-blue-100" : "border-transparent hover:border-slate-200"}`}>
                         <input
                           type="text"
                           placeholder="Description"
@@ -975,7 +980,12 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                             )
                           }
                         />
-                        <div className="flex items-center gap-1.5 px-2 border-l border-slate-200 my-1 py-0.5">
+                        {hasSuggestion && (
+                          <div className="px-2 text-blue-500 animate-pulse" title="AI Suggestion Available">
+                            <i className="fas fa-sparkles"></i>
+                          </div>
+                        )}
+                        <div className={`flex items-center gap-1.5 px-2 border-l border-slate-200 my-1 py-0.5`}>
                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider cursor-pointer whitespace-nowrap select-none">
                             Labour
                           </label>
@@ -1081,43 +1091,45 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                         Quantity and rate must be valid, positive numbers.
                       </div>
                     )}
-                    {auditResult?.lineItemSuggestions.find(
-                      (s) => s.id === item.id,
-                    ) &&
-                      (() => {
-                        const suggestion = auditResult.lineItemSuggestions.find(
-                          (s) => s.id === item.id,
-                        )!;
-                        return (
-                          <div className="bg-blue-50 border border-blue-100 rounded-lg p-2.5 mt-1 mx-1 animate-fade-in shadow-sm">
-                            <div className="flex gap-2">
-                              <i className="fas fa-magic text-blue-500 mt-0.5"></i>
-                              <div className="flex-1">
-                                <p className="text-xs text-blue-800 font-medium mb-1.5">
-                                  AI Suggestion: {suggestion.issue}
+                    {(() => {
+                      const suggestion = auditResult?.lineItemSuggestions.find(
+                        (s) => s.id === item.id,
+                      );
+                      if (!suggestion) return null;
+                      
+                      const isApplied = item.description === suggestion.suggestedDescription;
+                      if (isApplied) return null;
+
+                      return (
+                        <div className="bg-blue-50 border border-blue-100 rounded-lg p-2.5 mt-1 mx-1 animate-fade-in shadow-sm">
+                          <div className="flex gap-2">
+                            <i className="fas fa-magic text-blue-500 mt-0.5"></i>
+                            <div className="flex-1">
+                              <p className="text-xs text-blue-800 font-medium mb-1.5">
+                                AI Suggestion: {suggestion.issue}
+                              </p>
+                              <div className="flex items-center justify-between gap-4 bg-white/60 p-1.5 rounded border border-blue-100">
+                                <p className="text-xs text-blue-700 italic">
+                                  "{suggestion.suggestedDescription}"
                                 </p>
-                                <div className="flex items-center justify-between gap-4 bg-white/60 p-1.5 rounded border border-blue-100">
-                                  <p className="text-xs text-blue-700 italic">
-                                    "{suggestion.suggestedDescription}"
-                                  </p>
-                                  <button
-                                    onClick={() =>
-                                      handleLineItemChange(
-                                        item.id,
-                                        "description",
-                                        suggestion.suggestedDescription,
-                                      )
-                                    }
-                                    className="text-[10px] font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded transition-colors"
-                                  >
-                                    Apply
-                                  </button>
-                                </div>
+                                <button
+                                  onClick={() =>
+                                    handleLineItemChange(
+                                      item.id,
+                                      "description",
+                                      suggestion.suggestedDescription,
+                                    )
+                                  }
+                                  className="text-[10px] font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded transition-colors"
+                                >
+                                  Apply
+                                </button>
                               </div>
                             </div>
                           </div>
-                        );
-                      })()}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -1293,22 +1305,36 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                     <i className="fas fa-pencil-alt text-blue-500"></i> Line
                     Item Suggestions
                   </h4>
-                  {auditResult.lineItemSuggestions.length > 0 ? (
-                    <div className="text-sm text-slate-600">
-                      <p className="mb-2">
-                        We found {auditResult.lineItemSuggestions.length}{" "}
-                        suggestion(s) for your line items.
+                  {(() => {
+                    const unappliedCount = auditResult.lineItemSuggestions.filter(
+                      (s) => {
+                        const item = invoice.lineItems.find((i) => i.id === s.id);
+                        return item && item.description !== s.suggestedDescription;
+                      }
+                    ).length;
+
+                    return auditResult.lineItemSuggestions.length > 0 ? (
+                      <div className="text-sm text-slate-600">
+                        <p className="mb-2">
+                          We found {auditResult.lineItemSuggestions.length}{" "}
+                          suggestion(s) for your line items.
+                        </p>
+                        {unappliedCount > 0 ? (
+                          <p className="text-blue-600">
+                            Check the {unappliedCount} highlighted line item(s) above to review and apply the suggested description(s).
+                          </p>
+                        ) : (
+                          <p className="text-green-600 font-medium flex items-center gap-1.5">
+                            <i className="fas fa-check-circle"></i> All suggestions applied.
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-600">
+                        No issues found with line item descriptions.
                       </p>
-                      <p>
-                        Check the highlighted line items above to review and
-                        apply the suggested descriptions.
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-600">
-                      No issues found with line item descriptions.
-                    </p>
-                  )}
+                    );
+                  })()}
                 </div>
 
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">

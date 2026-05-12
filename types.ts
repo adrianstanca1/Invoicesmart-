@@ -119,7 +119,12 @@ export interface InvoiceAuditResult {
 
 export interface FinancialInsight {
   summary: string;
-  recommendations: string[];
+  recommendations: {
+    type: "overdue" | "optimization" | "general" | "tax";
+    title: string;
+    description: string;
+    actionableStep: string;
+  }[];
   riskAssessment: string;
 }
 

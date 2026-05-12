@@ -478,6 +478,13 @@ export const ClassicTemplate: React.FC<TemplateProps> = ({
 
           {(invoice.retentionRate > 0 || invoice.cisRate > 0) && (
             <>
+              <div className="flex justify-between px-4 font-semibold pb-2">
+                <span>Gross Total:</span>
+                <span>
+                  {currencySymbol(invoice.currency)}
+                  {calculations.total.toFixed(2)}
+                </span>
+              </div>
               {invoice.retentionRate > 0 && (
                 <div className="flex justify-between px-4 text-red-700">
                   <span>Less Retention ({invoice.retentionRate}%):</span>
@@ -686,9 +693,16 @@ export const MinimalTemplate: React.FC<TemplateProps> = ({
 
           {(invoice.retentionRate > 0 || invoice.cisRate > 0) && (
             <div className="space-y-2">
+              <div className="flex justify-between text-slate-800 font-medium">
+                <span>Gross Total</span>
+                <span>
+                  {currencySymbol(invoice.currency)}
+                  {calculations.total.toFixed(2)}
+                </span>
+              </div>
               {invoice.retentionRate > 0 && (
                 <div className="flex justify-between text-red-500">
-                  <span>Retention</span>
+                  <span>Less Retention ({invoice.retentionRate}%)</span>
                   <span>
                     -{currencySymbol(invoice.currency)}
                     {calculations.retention.toFixed(2)}
@@ -697,7 +711,7 @@ export const MinimalTemplate: React.FC<TemplateProps> = ({
               )}
               {invoice.cisRate > 0 && (
                 <div className="flex justify-between text-red-500">
-                  <span>CIS Deduction</span>
+                  <span>Less CIS Deduction ({invoice.cisRate}%)</span>
                   <span>
                     -{currencySymbol(invoice.currency)}
                     {calculations.cis.toFixed(2)}
@@ -708,7 +722,7 @@ export const MinimalTemplate: React.FC<TemplateProps> = ({
           )}
 
           <div className="flex justify-between font-black text-3xl pt-6 border-t border-slate-900">
-            <span>Total</span>
+            <span>Amount Due</span>
             <span>
               {currencySymbol(invoice.currency)}
               {calculations.amountDue.toFixed(2)}
