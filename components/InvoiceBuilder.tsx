@@ -148,6 +148,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
         toAddress: client.address,
         clientVatNumber: client.vatNumber || "",
         ...(client.defaultTerms && { terms: client.defaultTerms }),
+        taxRate: client.defaultTaxRate !== undefined ? client.defaultTaxRate : 20,
       }));
       setSaveStatus("unsaved");
     }
@@ -181,6 +182,16 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
   };
 
   const addLineItem = () => {
+    const defaultRate = (() => {
+      if (invoice.clientId) {
+        const client = clients.find((c) => c.id === invoice.clientId);
+        if (client && client.defaultTaxRate !== undefined) {
+          return client.defaultTaxRate;
+        }
+      }
+      return 20; // System default
+    })();
+
     setInvoice((prev) => ({
       ...prev,
       lineItems: [
@@ -191,6 +202,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
           quantity: 1,
           rate: 0,
           isLabor: false,
+          taxRate: defaultRate,
         },
       ],
     }));
@@ -375,6 +387,28 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
         useCORS: true,
         letterRendering: true,
         windowWidth: element.scrollWidth, // Ensures layou matches what's rendered
+      },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+    };
+
+    html2pdf().from(element).set(opt).save();
+  };
+
+  const handleDownloadAuditPDF = async () => {
+    const element = document.getElementById("audit-report-content");
+    if (!element) return;
+
+    const html2pdf = (await import("html2pdf.js")).default;
+
+    const opt: any = {
+      margin: 10,
+      filename: `Audit_Report_${invoice.invoiceNumber || "draft"}.pdf`,
+      image: { type: "jpeg", quality: 1.0 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        letterRendering: true,
+        windowWidth: element.scrollWidth,
       },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
     };
@@ -832,60 +866,74 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
           </div>
 
           {/* Construction Specifics */}
-          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-            <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-              <i className="fas fa-hard-hat text-orange-500"></i> Construction /
-              UK Accounting
+          <div className="bg-orange-50/30 p-4 rounded-xl border border-orange-100">
+            <h4 className="text-sm font-bold text-orange-900 mb-3 flex items-center gap-2">
+              <i className="fas fa-hard-hat text-orange-500"></i> Construction & Accounting
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="reverseCharge"
-                  checked={invoice.reverseCharge}
-                  onChange={(e) =>
-                    handleChange("reverseCharge", e.target.checked)
-                  }
-                  className="w-4 h-4 text-blue-600"
-                />
-                <label
-                  htmlFor="reverseCharge"
-                  className="text-sm text-slate-700"
-                >
-                  VAT Reverse Charge
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                  Retention Rate (%)
                 </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    placeholder="e.g. 5"
+                    className="w-full border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm bg-white focus:ring-1 focus:ring-orange-500 transition-colors"
+                    value={
+                      Number.isNaN(invoice.retentionRate)
+                        ? ""
+                        : invoice.retentionRate
+                    }
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      handleChange("retentionRate", isNaN(val) ? "" : val);
+                    }}
+                  />
+                  <div className="absolute right-3 top-2 text-slate-400 font-medium text-sm pointer-events-none">%</div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-slate-700 whitespace-nowrap">
-                  Retention Rate %
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                  CIS Deduction (%)
                 </label>
-                <input
-                  type="number"
-                  className="w-full border rounded px-2 py-1 text-sm"
-                  value={
-                    Number.isNaN(invoice.retentionRate)
-                      ? ""
-                      : invoice.retentionRate
-                  }
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value);
-                    handleChange("retentionRate", isNaN(val) ? "" : val);
-                  }}
-                />
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    placeholder="e.g. 20"
+                    className="w-full border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm bg-white focus:ring-1 focus:ring-orange-500 transition-colors"
+                    value={Number.isNaN(invoice.cisRate) ? "" : invoice.cisRate}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      handleChange("cisRate", isNaN(val) ? "" : val);
+                    }}
+                  />
+                  <div className="absolute right-3 top-2 text-slate-400 font-medium text-sm pointer-events-none">%</div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-slate-700 whitespace-nowrap">
-                  CIS Deduction %
+
+              <div className="pb-2">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    id="reverseCharge"
+                    checked={invoice.reverseCharge}
+                    onChange={(e) =>
+                      handleChange("reverseCharge", e.target.checked)
+                    }
+                    className="w-4 h-4 text-orange-600 rounded border-slate-300 focus:ring-orange-500"
+                  />
+                  <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
+                    VAT Reverse Charge
+                  </span>
                 </label>
-                <input
-                  type="number"
-                  className="w-full border rounded px-2 py-1 text-sm"
-                  value={Number.isNaN(invoice.cisRate) ? "" : invoice.cisRate}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value);
-                    handleChange("cisRate", isNaN(val) ? "" : val);
-                  }}
-                />
               </div>
             </div>
           </div>
@@ -929,7 +977,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                           }
                         />
                         {item.isLabor && (
-                          <div className="absolute right-2 top-2 text-[10px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded flex items-center gap-1 border border-emerald-100 pointer-events-none">
+                          <div className="absolute right-2 top-2 text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded flex items-center gap-1 border border-orange-200 pointer-events-none">
                             <i className="fas fa-hard-hat"></i> CIS
                           </div>
                         )}
@@ -981,7 +1029,11 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                             )
                           }
                         >
-                          <option value="">Default ({invoice.taxRate}%)</option>
+                          <option value="">
+                            {item.taxRate !== undefined 
+                              ? `Default (${item.taxRate}%)` 
+                              : `Default (${invoice.taxRate}%)`}
+                          </option>
                           {taxRules.map((rule) => (
                             <option key={rule.id} value={rule.id}>
                               {rule.name} ({rule.rate}%)
@@ -990,22 +1042,25 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                         </select>
                       </div>
                       {/* CIS Labor Checkbox */}
-                      <div
-                        className="w-20 flex justify-center items-center"
-                        title="Subject to CIS deduction"
-                      >
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 text-emerald-600 rounded cursor-pointer"
-                          checked={item.isLabor === true}
-                          onChange={(e) =>
+                      <div className="w-20 flex justify-center items-center">
+                        <button
+                          type="button"
+                          title="Subject to CIS deduction"
+                          className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-colors flex items-center gap-1.5 focus:outline-none w-14 justify-center ${
+                            item.isLabor
+                              ? "bg-orange-100 text-orange-700 border-orange-300 shadow-sm"
+                              : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100 hover:text-slate-600"
+                          }`}
+                          onClick={() =>
                             handleLineItemChange(
                               item.id,
                               "isLabor",
-                              e.target.checked,
+                              !item.isLabor,
                             )
                           }
-                        />
+                        >
+                          {item.isLabor ? <><i className="fas fa-check"></i> CIS</> : "NO"}
+                        </button>
                       </div>
                       <div className="w-24 px-2 text-right font-semibold text-slate-700 text-sm flex items-center justify-end">
                         {currencySymbol(invoice.currency)}
@@ -1176,15 +1231,23 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                 <i className="fas fa-clipboard-check text-purple-600"></i> AI
                 Accountant Audit Report
               </h3>
-              <button
-                onClick={() => setAuditResult(null)}
-                className="text-purple-400 hover:text-purple-700 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-purple-100"
-              >
-                <i className="fas fa-times"></i>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDownloadAuditPDF}
+                  className="px-3 py-1.5 text-sm font-medium bg-white text-purple-700 hover:bg-purple-50 border border-purple-200 rounded-lg shadow-sm transition-colors flex items-center gap-2"
+                >
+                  <i className="fas fa-file-pdf"></i> Download PDF
+                </button>
+                <button
+                  onClick={() => setAuditResult(null)}
+                  className="text-purple-400 hover:text-purple-700 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-purple-100"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div id="audit-report-content" className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-white/50 rounded-xl">
               <div className="space-y-6">
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
                   <h4 className="font-semibold text-slate-800 text-sm mb-3 flex items-center gap-2">

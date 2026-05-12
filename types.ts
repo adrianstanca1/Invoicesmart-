@@ -15,6 +15,7 @@ export interface Client {
   notes?: string;
   defaultTerms?: string;
   industry?: string;
+  defaultTaxRate?: number;
 }
 
 export interface LineItem {

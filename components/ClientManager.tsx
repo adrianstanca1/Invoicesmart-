@@ -20,14 +20,15 @@ const ClientManager: React.FC<ClientManagerProps> = ({ clients, onSaveClient, on
     vatNumber: '',
     notes: '',
     defaultTerms: '',
-    industry: ''
+    industry: '',
+    defaultTaxRate: undefined
   });
 
   const handleEdit = (client?: Client) => {
     if (client) {
       setCurrentClient(client);
     } else {
-      setCurrentClient({ id: crypto.randomUUID(), name: '', email: '', phone: '', address: '', vatNumber: '', notes: '', defaultTerms: '', industry: '' });
+      setCurrentClient({ id: crypto.randomUUID(), name: '', email: '', phone: '', address: '', vatNumber: '', notes: '', defaultTerms: '', industry: '', defaultTaxRate: undefined });
     }
     setIsEditing(true);
   };
@@ -130,6 +131,19 @@ const ClientManager: React.FC<ClientManagerProps> = ({ clients, onSaveClient, on
                   value={currentClient.industry || ''}
                   onChange={e => setCurrentClient({...currentClient, industry: e.target.value})}
                   placeholder="e.g. Technology, Retail"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Default Tax Rate (%)</label>
+                <input 
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  className="w-full border rounded-lg px-3 py-2"
+                  value={currentClient.defaultTaxRate !== undefined ? currentClient.defaultTaxRate : ''}
+                  onChange={e => setCurrentClient({...currentClient, defaultTaxRate: e.target.value === '' ? undefined : parseFloat(e.target.value)})}
+                  placeholder="System default if empty"
                 />
               </div>
               <div>
