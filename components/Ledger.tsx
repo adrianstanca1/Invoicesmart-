@@ -17,7 +17,7 @@ interface LedgerProps {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 const Ledger: React.FC<LedgerProps> = ({ transactions, invoices, onAddTransaction, onDeleteTransaction }) => {
-  const [activeTab, setActiveTab] = useState<'ledger' | 'reports'>('ledger');
+  const [activeTab, setActiveTab] = useState<'ledger' | 'reports' | 'retentions'>('ledger');
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([
     { role: 'ai', content: "Hello! I'm your AI Accountant. I can manage your ledger, generate P&L reports, and estimate your taxes. How can I assist you?" }
   ]);
@@ -222,6 +222,12 @@ const Ledger: React.FC<LedgerProps> = ({ transactions, invoices, onAddTransactio
               >
                 Reports & Analytics
               </button>
+              <button 
+                onClick={() => setActiveTab('retentions')}
+                className={`px-4 py-1 rounded-md text-sm font-medium transition-all ${activeTab === 'retentions' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Retentions & CIS
+              </button>
             </div>
           </div>
           {activeTab === 'ledger' && (
@@ -268,7 +274,7 @@ const Ledger: React.FC<LedgerProps> = ({ transactions, invoices, onAddTransactio
         {/* CONTENT AREA */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 overflow-hidden flex flex-col relative">
           
-          {activeTab === 'ledger' ? (
+          {activeTab === 'ledger' && (
             <div className="overflow-y-auto flex-1">
               <table className="w-full text-left border-collapse">
                 <thead className="bg-slate-50 sticky top-0 z-10">
@@ -309,7 +315,67 @@ const Ledger: React.FC<LedgerProps> = ({ transactions, invoices, onAddTransactio
                 </tbody>
               </table>
             </div>
-          ) : (
+          )}
+          
+          {activeTab === 'retentions' && (
+            <div className="overflow-y-auto flex-1 p-6 space-y-6">
+               <h3 className="text-xl font-bold text-slate-800 border-b border-slate-200 pb-2">Retentions & CIS Trail</h3>
+               <p className="text-sm text-slate-500 mb-4">This ledger tracks all tax deductions (CIS) paid at source, and retentions withheld by clients on your construction projects.</p>
+               
+               <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                    <p className="text-sm text-amber-700 font-semibold mb-1">Total Retention Withheld</p>
+                    <p className="text-2xl font-bold text-amber-600">
+                      £{transactions.filter(t => t.category === 'Retention Withheld').reduce((acc, t) => acc + t.amount, 0).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                    <p className="text-sm text-blue-700 font-semibold mb-1">Total CIS Tax Paid</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      £{transactions.filter(t => t.category === 'CIS Tax Deducted').reduce((acc, t) => acc + t.amount, 0).toFixed(2)}
+                    </p>
+                  </div>
+               </div>
+
+               <div className="bg-white border border-slate-200 rounded-lg overflow-hidden mt-6">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
+                      <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Description</th>
+                      <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Category</th>
+                      <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions
+                      .filter(t => t.category === 'Retention Withheld' || t.category === 'CIS Tax Deducted')
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .map(tx => (
+                        <tr key={tx.id} className="border-t border-slate-100">
+                          <td className="py-3 px-4 text-sm text-slate-600">{tx.date}</td>
+                          <td className="py-3 px-4 text-sm font-medium text-slate-800">{tx.description}</td>
+                          <td className="py-3 px-4 text-sm">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${tx.category === 'Retention Withheld' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                              {tx.category}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-sm font-bold text-right text-slate-700">
+                            £{tx.amount.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))
+                    }
+                    {transactions.filter(t => t.category === 'Retention Withheld' || t.category === 'CIS Tax Deducted').length === 0 && (
+                       <tr><td colSpan={4} className="py-8 text-center text-slate-400">No retention or CIS records found.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+               </div>
+            </div>
+          )}
+
+          {activeTab === 'reports' && (
             <div className="flex-1 overflow-y-auto p-6 space-y-8">
               {/* Charts Section */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

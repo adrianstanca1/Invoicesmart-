@@ -164,23 +164,81 @@ const App: React.FC = () => {
         let tax = 0;
         if (!invoice.reverseCharge) {
            tax = invoice.lineItems.reduce((acc, item) => {
-             const rate = item.taxRate ?? invoice.taxRate;
+             const rule = item.taxRuleId ? taxRules.find(r => r.id === item.taxRuleId) : null;
+             const rate = rule ? rule.rate : (item.taxRate ?? invoice.taxRate);
              return acc + ((item.quantity * item.rate) * (rate / 100));
            }, 0);
         }
-        const total = subtotal + tax - discount;
+        
+        const retention = subtotal * (invoice.retentionRate / 100);
+        const labor = invoice.lineItems.filter(i => i.isLabor === true).reduce((acc, item) => acc + (item.quantity * item.rate), 0);
+        const cis = labor * (invoice.cisRate / 100);
+        
+        const totalAmountDue = subtotal + tax - discount - retention - cis;
 
-        const newTx: Transaction = {
+        const newTxs: Transaction[] = [];
+        
+        // Under standard simple accounting for this app (Cash-like),
+        // we record the gross amount as Income, and then record the deductions 
+        // as "virtual" expenses or simply keep Income separated.
+        // Or we just record everything that makes up the Sales figure.
+        
+        // 1. Record the cash received
+        newTxs.push({
           id: crypto.randomUUID(),
           date: new Date().toISOString().split('T')[0],
-          amount: total,
+          amount: totalAmountDue,
           type: 'Income',
           category: 'Sales',
           description: `Payment for Invoice #${invoice.invoiceNumber}`,
           invoiceId: invoice.id
-        };
-        setTransactions(prev => [...prev, newTx]);
-        logAction('Generated', 'Transaction', newTx.id, newTx.description, `Auto-generated payment for Invoice #${invoice.invoiceNumber}`);
+        });
+
+        // 2. Record Retention (It's income we earned but haven't received - track it as Income so P&L shows true earnings, but tag it so we know it's uncollected)
+        if (retention > 0) {
+          newTxs.push({
+            id: crypto.randomUUID(),
+            date: new Date().toISOString().split('T')[0],
+            amount: retention,
+            type: 'Income',
+            category: 'Retention Withheld',
+            description: `Retention withheld on Invoice #${invoice.invoiceNumber} (${invoice.retentionRate}%)`,
+            invoiceId: invoice.id
+          });
+        }
+
+        // 3. Record CIS (It's tax we paid out of our income, so it's recorded as Income first to balance sales, then we COULD record it as an expense, BUT wait:
+        // Actually, if we just record CIS as Income, it acts like it's part of our Gross Sales. 
+        // Then we don't need a negative. Wait, if we record cash (750), Retention (50), CIS (200), total Income = 1000. This correctly shows our Gross Sales!
+        if (cis > 0) {
+          newTxs.push({
+            id: crypto.randomUUID(),
+            date: new Date().toISOString().split('T')[0],
+            amount: cis,
+            type: 'Income', // Recorded as income to make Gross Profit correct
+            category: 'CIS Tax Deducted',
+            description: `CIS Tax Paid at Source on Invoice #${invoice.invoiceNumber} (${invoice.cisRate}%)`,
+            invoiceId: invoice.id
+          });
+        }
+        
+        if (invoice.reverseCharge) {
+          // Log a zero amount info transaction for reverse charge if needed
+          newTxs.push({
+            id: crypto.randomUUID(),
+            date: new Date().toISOString().split('T')[0],
+            amount: 0,
+            type: 'Income',
+            category: 'Reverse Charge',
+            description: `VAT Reverse Charge applied to Invoice #${invoice.invoiceNumber}`,
+            invoiceId: invoice.id
+          });
+        }
+
+        setTransactions(prev => [...prev, ...newTxs]);
+        newTxs.forEach(tx => {
+          logAction('Generated', 'Transaction', tx.id, tx.description, `Auto-generated for Invoice #${invoice.invoiceNumber}`);
+        });
       }
     }
   };
