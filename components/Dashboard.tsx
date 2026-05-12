@@ -6,7 +6,7 @@ import {
   Transaction,
   TaxRule,
 } from "../types";
-import { generateFinancialInsights } from "../services/geminiService";
+import { generateFinancialInsights } from "../services/aiService";
 import {
   BarChart,
   Bar,

@@ -103,10 +103,16 @@ export interface FinancialReport {
   insights: string[];
 }
 
+export interface LineItemSuggestion {
+  id: string;
+  issue: string;
+  suggestedDescription: string;
+}
+
 export interface InvoiceAuditResult {
   taxCompliance: string[];
   cisVatImplications: string[];
-  lineItemSuggestions: string[];
+  lineItemSuggestions: LineItemSuggestion[];
   generalFeedback: string[];
 }
 
@@ -126,3 +132,11 @@ export interface AuditLog {
   entityName: string; // e.g., Invoice Number or Client Name
   details: string;
 }
+
+export interface AIProviderConfig {
+  provider: 'gemini' | 'ollama';
+  model: string;
+  apiKey?: string;
+  endpoint?: string;
+}
+

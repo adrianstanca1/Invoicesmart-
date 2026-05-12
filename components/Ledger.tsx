@@ -4,7 +4,7 @@ import {
   chatWithAccountant,
   generateDetailedReport,
   parseReceiptFromImage,
-} from "../services/geminiService";
+} from "../services/aiService";
 import ReactMarkdown from "react-markdown";
 import {
   BarChart,

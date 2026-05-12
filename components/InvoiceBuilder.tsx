@@ -10,7 +10,7 @@ import {
   generateInvoiceFromPrompt,
   auditInvoice,
   parseInvoiceFromImage,
-} from "../services/geminiService";
+} from "../services/aiService";
 import {
   ModernTemplate,
   ClassicTemplate,
@@ -1030,6 +1030,43 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                         Quantity and rate must be valid, positive numbers.
                       </div>
                     )}
+                    {auditResult?.lineItemSuggestions.find(
+                      (s) => s.id === item.id,
+                    ) &&
+                      (() => {
+                        const suggestion = auditResult.lineItemSuggestions.find(
+                          (s) => s.id === item.id,
+                        )!;
+                        return (
+                          <div className="bg-blue-50 border border-blue-100 rounded-lg p-2.5 mt-1 mx-1 animate-fade-in shadow-sm">
+                            <div className="flex gap-2">
+                              <i className="fas fa-magic text-blue-500 mt-0.5"></i>
+                              <div className="flex-1">
+                                <p className="text-xs text-blue-800 font-medium mb-1.5">
+                                  AI Suggestion: {suggestion.issue}
+                                </p>
+                                <div className="flex items-center justify-between gap-4 bg-white/60 p-1.5 rounded border border-blue-100">
+                                  <p className="text-xs text-blue-700 italic">
+                                    "{suggestion.suggestedDescription}"
+                                  </p>
+                                  <button
+                                    onClick={() =>
+                                      handleLineItemChange(
+                                        item.id,
+                                        "description",
+                                        suggestion.suggestedDescription,
+                                      )
+                                    }
+                                    className="text-[10px] font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded transition-colors"
+                                  >
+                                    Apply
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                   </div>
                 );
               })}
@@ -1197,17 +1234,22 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                     <i className="fas fa-pencil-alt text-blue-500"></i> Line
                     Item Suggestions
                   </h4>
-                  <ul className="space-y-2">
-                    {auditResult.lineItemSuggestions.map((item, i) => (
-                      <li
-                        key={i}
-                        className="text-sm text-slate-600 flex items-start gap-2"
-                      >
-                        <span className="text-blue-500 mt-0.5">•</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {auditResult.lineItemSuggestions.length > 0 ? (
+                    <div className="text-sm text-slate-600">
+                      <p className="mb-2">
+                        We found {auditResult.lineItemSuggestions.length}{" "}
+                        suggestion(s) for your line items.
+                      </p>
+                      <p>
+                        Check the highlighted line items above to review and
+                        apply the suggested descriptions.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-600">
+                      No issues found with line item descriptions.
+                    </p>
+                  )}
                 </div>
 
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
@@ -1450,6 +1492,65 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
               </button>
             </div>
             <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              {/* AI Intelligence Engine Config */}
+              <div className="space-y-3 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                <h4 className="font-semibold text-indigo-900 flex items-center gap-2">
+                  <i className="fas fa-brain text-indigo-500"></i> Intelligence
+                  Engine
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">
+                      AI Provider
+                    </label>
+                    <select
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-1 focus:ring-indigo-500 transition-colors"
+                      value={apiKeys.aiProvider || "gemini"}
+                      onChange={(e) =>
+                        setApiKeys({ ...apiKeys, aiProvider: e.target.value })
+                      }
+                    >
+                      <option value="gemini">Google Gemini</option>
+                      <option value="ollama">Ollama (Local LLM)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">
+                      Model Name
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-1 focus:ring-indigo-500 transition-colors"
+                      placeholder="e.g. llama3, gemini-3.1-pro-preview"
+                      value={apiKeys.aiModel || "gemini-3.1-pro-preview"}
+                      onChange={(e) =>
+                        setApiKeys({ ...apiKeys, aiModel: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+                {apiKeys.aiProvider === "ollama" && (
+                  <div className="pt-2">
+                    <label className="block text-xs font-medium text-slate-700 mb-1">
+                      Ollama Endpoint API URL
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-1 focus:ring-indigo-500 transition-colors"
+                      placeholder="http://localhost:11434"
+                      value={apiKeys.aiEndpoint || "http://localhost:11434"}
+                      onChange={(e) =>
+                        setApiKeys({ ...apiKeys, aiEndpoint: e.target.value })
+                      }
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Ensure your local Ollama instance is running and accepts
+                      CORS requests if running from browser.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Invoice Number Generation */}
               <div className="space-y-3">
                 <h4 className="font-semibold text-slate-700 flex items-center gap-2">
