@@ -42,7 +42,7 @@ const EmptyInvoice: Invoice = {
       description: "Labor Services",
       quantity: 1,
       rate: 0,
-      isLabor: true,
+      isLabor: false,
     },
   ],
   notes: "",
@@ -909,7 +909,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                 <div className="w-16 text-right">Qty</div>
                 <div className="w-20 text-right">Rate</div>
                 <div className="w-24">Tax</div>
-                <div className="w-20 text-center">Labor (CIS)</div>
+                <div className="w-20 text-center">Subject to CIS</div>
                 <div className="w-24 text-right">Amount</div>
                 <div className="w-6"></div>
               </div>
@@ -995,7 +995,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                       {/* CIS Labor Checkbox */}
                       <div
                         className="w-20 flex justify-center items-center"
-                        title="Mark as Labor (for CIS deduction)"
+                        title="Subject to CIS deduction"
                       >
                         <input
                           type="checkbox"

@@ -145,7 +145,7 @@ export const ModernTemplate: React.FC<TemplateProps> = ({
                   </div>
                   {invoice.cisRate > 0 && item.isLabor && (
                     <span className="text-xs text-slate-400 mt-1 inline-block bg-slate-100 px-1.5 py-0.5 rounded">
-                      Labor (CIS)
+                      Subject to CIS
                     </span>
                   )}
                 </td>
@@ -405,7 +405,7 @@ export const ClassicTemplate: React.FC<TemplateProps> = ({
                   </div>
                   {invoice.cisRate > 0 && item.isLabor && (
                     <span className="text-xs italic text-slate-500 mt-1 inline-block">
-                      Labor (CIS applied)
+                      Subject to CIS
                     </span>
                   )}
                 </td>
@@ -628,7 +628,7 @@ export const MinimalTemplate: React.FC<TemplateProps> = ({
                 <p className="font-medium text-lg">{item.description}</p>
                 {invoice.cisRate > 0 && item.isLabor && (
                   <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500 mt-1 inline-block">
-                    Labor (CIS applied)
+                    Subject to CIS
                   </span>
                 )}
               </div>
