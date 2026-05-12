@@ -84,6 +84,12 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
   const [auditResult, setAuditResult] = useState<InvoiceAuditResult | null>(
     null,
   );
+  const [localRetention, setLocalRetention] = useState(
+    Number.isNaN(invoice.retentionRate) ? "" : Number(invoice.retentionRate).toFixed(1)
+  );
+  const [localCis, setLocalCis] = useState(
+    Number.isNaN(invoice.cisRate) ? "" : Number(invoice.cisRate).toFixed(1)
+  );
   const [isScanning, setIsScanning] = useState(false);
   const [apiKeys, setApiKeys] = useState(() => {
     try {
@@ -107,6 +113,8 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
   useEffect(() => {
     if (initialInvoice) {
       setInvoice(initialInvoice);
+      setLocalRetention(Number.isNaN(initialInvoice.retentionRate) ? "" : Number(initialInvoice.retentionRate).toFixed(1));
+      setLocalCis(Number.isNaN(initialInvoice.cisRate) ? "" : Number(initialInvoice.cisRate).toFixed(1));
     } else {
       // Reset to empty if no initialInvoice (e.g. clicking "Create" new)
       setInvoice({
@@ -114,6 +122,8 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
         invoiceNumber: initialInvoiceNumber || EmptyInvoice.invoiceNumber,
         id: crypto.randomUUID(),
       });
+      setLocalRetention("");
+      setLocalCis("");
     }
   }, [initialInvoice, initialInvoiceNumber]);
 
@@ -872,9 +882,18 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                  Retention Rate (%)
-                </label>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-600">
+                    Retention Rate (%)
+                  </label>
+                  <div className="group relative flex items-center">
+                    <i className="fas fa-info-circle text-slate-400 text-xs cursor-help hover:text-orange-500 transition-colors"></i>
+                    <div className="absolute bottom-full right-0 md:left-1/2 md:-translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center">
+                      Percentage of the contract value held back until work is completed. Reduces the net amount due.
+                      <div className="absolute top-full right-2 md:left-1/2 md:-translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                    </div>
+                  </div>
+                </div>
                 <div className="relative">
                   <input
                     type="number"
@@ -883,14 +902,22 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                     step="0.1"
                     placeholder="e.g. 5"
                     className="w-full border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm bg-white focus:ring-1 focus:ring-orange-500 transition-colors"
-                    value={
-                      Number.isNaN(invoice.retentionRate)
-                        ? ""
-                        : invoice.retentionRate
-                    }
+                    value={localRetention}
                     onChange={(e) => {
+                      setLocalRetention(e.target.value);
                       const val = parseFloat(e.target.value);
                       handleChange("retentionRate", isNaN(val) ? "" : val);
+                    }}
+                    onBlur={(e) => {
+                      let val = parseFloat(e.target.value);
+                      if (!isNaN(val)) {
+                        val = Math.max(0, Math.min(100, val));
+                        handleChange("retentionRate", val);
+                        setLocalRetention(val.toFixed(1));
+                      } else {
+                        handleChange("retentionRate", NaN);
+                        setLocalRetention("");
+                      }
                     }}
                   />
                   <div className="absolute right-3 top-2 text-slate-400 font-medium text-sm pointer-events-none">%</div>
@@ -898,9 +925,18 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                  CIS Deduction (%)
-                </label>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-600">
+                    CIS Deduction (%)
+                  </label>
+                  <div className="group relative flex items-center">
+                    <i className="fas fa-info-circle text-slate-400 text-xs cursor-help hover:text-orange-500 transition-colors"></i>
+                    <div className="absolute bottom-full right-0 md:left-1/2 md:-translate-x-1/2 mb-2 w-56 p-2 bg-slate-800 text-white text-[10px] rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center">
+                      Construction Industry Scheme deduction rate (usually 20% or 30%). Applied only to line items marked as 'Labour'.
+                      <div className="absolute top-full right-2 md:left-1/2 md:-translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                    </div>
+                  </div>
+                </div>
                 <div className="relative">
                   <input
                     type="number"
@@ -909,10 +945,22 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                     step="0.1"
                     placeholder="e.g. 20"
                     className="w-full border border-slate-200 rounded-lg pl-3 pr-8 py-2 text-sm bg-white focus:ring-1 focus:ring-orange-500 transition-colors"
-                    value={Number.isNaN(invoice.cisRate) ? "" : invoice.cisRate}
+                    value={localCis}
                     onChange={(e) => {
+                      setLocalCis(e.target.value);
                       const val = parseFloat(e.target.value);
                       handleChange("cisRate", isNaN(val) ? "" : val);
+                    }}
+                    onBlur={(e) => {
+                      let val = parseFloat(e.target.value);
+                      if (!isNaN(val)) {
+                        val = Math.max(0, Math.min(100, val));
+                        handleChange("cisRate", val);
+                        setLocalCis(val.toFixed(1));
+                      } else {
+                        handleChange("cisRate", NaN);
+                        setLocalCis("");
+                      }
                     }}
                   />
                   <div className="absolute right-3 top-2 text-slate-400 font-medium text-sm pointer-events-none">%</div>
@@ -1120,9 +1168,9 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                                       suggestion.suggestedDescription,
                                     )
                                   }
-                                  className="text-[10px] font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded transition-colors"
+                                  className="text-[11px] font-bold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 whitespace-nowrap"
                                 >
-                                  Apply
+                                  <i className="fas fa-check"></i> Apply
                                 </button>
                               </div>
                             </div>
@@ -1236,13 +1284,13 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
 
         {/* AI Audit Result */}
         {auditResult && (
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-xl p-6 shadow-sm animate-fade-in transition-all">
+          <div id="audit-report-content" className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-xl p-6 shadow-sm animate-fade-in transition-all">
             <div className="flex justify-between items-start mb-6">
               <h3 className="font-bold text-xl text-purple-900 flex items-center gap-2">
                 <i className="fas fa-clipboard-check text-purple-600"></i> AI
-                Accountant Audit Report
+                Accountant Audit Report {invoice.invoiceNumber && `- ${invoice.invoiceNumber}`}
               </h3>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2" data-html2canvas-ignore="true">
                 <button
                   onClick={handleDownloadAuditPDF}
                   className="px-3 py-1.5 text-sm font-medium bg-white text-purple-700 hover:bg-purple-50 border border-purple-200 rounded-lg shadow-sm transition-colors flex items-center gap-2"
@@ -1258,7 +1306,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
               </div>
             </div>
 
-            <div id="audit-report-content" className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-white/50 rounded-xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-white/50 rounded-xl">
               <div className="space-y-6">
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
                   <h4 className="font-semibold text-slate-800 text-sm mb-3 flex items-center gap-2">
