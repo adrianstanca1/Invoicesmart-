@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
-import { Invoice, FinancialInsight, Transaction, Client, TaxRule } from '../types';
+import { Invoice, FinancialInsight, Transaction, Client, TaxRule, InvoiceAuditResult } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -282,28 +282,50 @@ export const parseInvoiceFromImage = async (base64Image: string): Promise<Partia
   }
 };
 
-export const auditInvoice = async (invoice: Invoice, taxRules: TaxRule[]): Promise<string> => {
+export const auditInvoice = async (invoice: Invoice, taxRules: TaxRule[]): Promise<InvoiceAuditResult | null> => {
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Act as a professional UK accountant. Review the following invoice JSON data and provide a brief, professional audit.
+      model: 'gemini-3.1-pro-preview',
+      contents: `Act as a professional UK accountant. Review the following invoice JSON data and provide a detailed, professional audit.
       Check for:
       1. Missing critical information (HMRC requirements).
       2. Correct application of Reverse Charge / CIS if applicable (Construction).
       3. Potential tax implications of the line items, especially considering UK tax laws and the selected tax rules.
-      4. Professionalism.
-      5. Specific suggestions for improving line item descriptions for clarity and compliance.
-      6. Flag potential errors in calculations based on UK tax laws.
+      4. Specific suggestions for improving line item descriptions for clarity and compliance.
       
       Available Tax Rules: ${JSON.stringify(taxRules)}
       Invoice Data: ${JSON.stringify(invoice)}
       
-      Output plain text, bullet points. Keep it under 250 words.`,
+      Provide a JSON response with the following properties:
+      - taxCompliance: Array of strings detailing HMRC requirements missing or met, and potential calculation errors.
+      - cisVatImplications: Array of strings detailing implications of VAT / Reverse Charge / CIS, depending on the line items.
+      - lineItemSuggestions: Array of strings pointing out ways to improve the descriptions to avoid disputes or tax confusion.
+      - generalFeedback: Array of strings on overall professionalism, terms, and general advice.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            taxCompliance: { type: "array", items: { type: "string" } },
+            cisVatImplications: { type: "array", items: { type: "string" } },
+            lineItemSuggestions: { type: "array", items: { type: "string" } },
+            generalFeedback: { type: "array", items: { type: "string" } },
+          },
+          required: ["taxCompliance", "cisVatImplications", "lineItemSuggestions", "generalFeedback"]
+        }
+      }
     });
-    return response.text || "No insights generated.";
+
+    if (!response.text) return null;
+
+    try {
+      return JSON.parse(response.text) as InvoiceAuditResult;
+    } catch {
+      return null;
+    }
   } catch (error) {
     console.error("Error auditing invoice:", error);
-    return "Could not perform audit at this time.";
+    return null;
   }
 };
 
@@ -315,6 +337,7 @@ export const generateFinancialInsights = async (invoices: Invoice[], clients: Cl
       
       Invoices: ${JSON.stringify(invoices.map(i => ({ 
         date: i.date, 
+        dueDate: i.dueDate,
         total: i.lineItems.reduce((acc, item) => acc + (item.quantity * item.rate), 0), 
         status: i.status,
         cisDeducted: i.cisRate > 0,
@@ -332,7 +355,10 @@ export const generateFinancialInsights = async (invoices: Invoice[], clients: Cl
         rate: t.rate
       })))}
       
-      Provide a JSON response with a summary, a list of recommendations to improve cash flow (mention CIS/VAT if relevant, and client-specific insights if some clients are consistently late or have specific terms), and a risk assessment.`,
+      Provide a JSON response with:
+      1. summary: A brief summary of financial health and cash flow.
+      2. recommendations: A list of actionable recommendations. You MUST include suggestions regarding clients with overdue ("Overdue") payments (identify them by name if possible), and identify invoice patterns that could be optimized (e.g., billing cycles, terms). Mention CIS/VAT if relevant.
+      3. riskAssessment: A brief risk assessment based on overdue concentration and tax compliance.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {

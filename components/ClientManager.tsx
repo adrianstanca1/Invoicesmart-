@@ -219,11 +219,6 @@ const ClientManager: React.FC<ClientManagerProps> = ({ clients, onSaveClient, on
                   <i className="fas fa-map-marker-alt w-4 mt-1"></i> 
                   <span className="whitespace-pre-line">{client.address || '-'}</span>
                 </div>
-                {client.vatNumber && (
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <i className="fas fa-hashtag w-4"></i> VAT: {client.vatNumber}
-                  </div>
-                )}
               </div>
             </div>
           ))

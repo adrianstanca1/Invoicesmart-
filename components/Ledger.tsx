@@ -296,20 +296,22 @@ const Ledger: React.FC<LedgerProps> = ({
   };
 
   // Prepare Chart Data
-  const categoryData = transactions
-    .filter((t) => t.type === "Expense")
-    .reduce(
-      (acc, t) => {
-        const existing = acc.find((i) => i.name === t.category);
-        if (existing) {
-          existing.value += t.amount;
-        } else {
-          acc.push({ name: t.category, value: t.amount });
-        }
-        return acc;
-      },
-      [] as { name: string; value: number }[],
-    );
+  const categoryData = React.useMemo(() => {
+    return transactions
+      .filter((t) => t.type === "Expense")
+      .reduce(
+        (acc, t) => {
+          const existing = acc.find((i) => i.name === t.category);
+          if (existing) {
+            existing.value += t.amount;
+          } else {
+            acc.push({ name: t.category, value: t.amount });
+          }
+          return acc;
+        },
+        [] as { name: string; value: number }[],
+      );
+  }, [transactions]);
 
   return (
     <div className="flex flex-col xl:flex-row gap-6 p-4 md:p-8 max-w-7xl mx-auto h-[calc(100vh-2rem)]">

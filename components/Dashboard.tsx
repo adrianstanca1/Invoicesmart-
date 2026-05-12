@@ -268,19 +268,37 @@ const Dashboard: React.FC<DashboardProps> = ({
 
               <div>
                 <p className="text-sm font-medium text-indigo-900 mb-2">
-                  Recommendations
+                  Actionable Recommendations
                 </p>
-                <ul className="space-y-2">
-                  {insight.recommendations.map((rec, idx) => (
-                    <li
-                      key={idx}
-                      className="flex items-start gap-2 text-sm text-slate-700"
-                    >
-                      <i className="fas fa-check-circle text-green-500 mt-0.5"></i>
-                      {rec}
-                    </li>
-                  ))}
-                </ul>
+                <div className="space-y-3">
+                  {insight.recommendations.map((rec, idx) => {
+                    const isOverdue =
+                      rec.toLowerCase().includes("overdue") ||
+                      rec.toLowerCase().includes("late");
+                    const isOptimize =
+                      rec.toLowerCase().includes("optimize") ||
+                      rec.toLowerCase().includes("pattern") ||
+                      rec.toLowerCase().includes("cycle");
+
+                    return (
+                      <div
+                        key={idx}
+                        className="bg-white/80 p-3 rounded-lg backdrop-blur-sm border border-white flex items-start gap-3 shadow-sm"
+                      >
+                        <div
+                          className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${isOverdue ? "bg-red-100 text-red-600" : isOptimize ? "bg-blue-100 text-blue-600" : "bg-green-100 text-green-600"}`}
+                        >
+                          <i
+                            className={`fas ${isOverdue ? "fa-exclamation-triangle" : isOptimize ? "fa-lightbulb" : "fa-check"} text-xs`}
+                          ></i>
+                        </div>
+                        <p className="text-sm text-slate-700 leading-relaxed">
+                          {rec}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="bg-red-50 p-3 rounded-lg border border-red-100">

@@ -48,22 +48,25 @@ export interface Invoice {
   discountRate: number;
   logo?: string; // Base64 string
   brandColor?: string; // Hex color code
-  status: 'Draft' | 'Sent' | 'Paid' | 'Overdue';
-  
+  status: "Draft" | "Sent" | "Paid" | "Overdue";
+
   // Payment Integration
-  paymentGateway?: 'stripe' | 'paypal' | 'none';
+  paymentGateway?: "stripe" | "paypal" | "none";
   paymentLinkId?: string; // email for paypal, or link for stripe
-  
+
   // UK / Construction Specifics
   reverseCharge: boolean;
   retentionRate: number; // Percentage
   cisRate: number; // Percentage (e.g. 20% or 30%)
-  template: 'modern' | 'classic' | 'minimal';
+  template: "modern" | "classic" | "minimal";
   isRecurring?: boolean;
-  recurringFrequency?: 'weekly' | 'monthly' | 'yearly';
+  recurringFrequency?: "weekly" | "monthly" | "yearly";
   recurringEndDate?: string;
   lastGeneratedDate?: string;
   parentInvoiceId?: string;
+  // UI / Display Toggles
+  showNotes?: boolean;
+  showTerms?: boolean;
 }
 
 export interface Transaction {
@@ -71,7 +74,7 @@ export interface Transaction {
   date: string;
   description: string;
   amount: number;
-  type: 'Income' | 'Expense';
+  type: "Income" | "Expense";
   category: string;
   invoiceId?: string;
   referenceId?: string;
@@ -100,6 +103,13 @@ export interface FinancialReport {
   insights: string[];
 }
 
+export interface InvoiceAuditResult {
+  taxCompliance: string[];
+  cisVatImplications: string[];
+  lineItemSuggestions: string[];
+  generalFeedback: string[];
+}
+
 export interface FinancialInsight {
   summary: string;
   recommendations: string[];
@@ -110,8 +120,8 @@ export interface AuditLog {
   id: string;
   timestamp: string;
   user: string;
-  action: 'Created' | 'Updated' | 'Deleted' | 'Generated';
-  entityType: 'Invoice' | 'Client' | 'Transaction' | 'TaxRule';
+  action: "Created" | "Updated" | "Deleted" | "Generated";
+  entityType: "Invoice" | "Client" | "Transaction" | "TaxRule";
   entityId: string;
   entityName: string; // e.g., Invoice Number or Client Name
   details: string;
