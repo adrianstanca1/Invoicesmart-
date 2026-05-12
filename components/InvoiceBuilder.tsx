@@ -949,7 +949,6 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                 <div className="w-16 text-right">Qty</div>
                 <div className="w-20 text-right">Rate</div>
                 <div className="w-24">Tax</div>
-                <div className="w-20 text-center">Subject to CIS</div>
                 <div className="w-24 text-right">Amount</div>
                 <div className="w-6"></div>
               </div>
@@ -962,11 +961,11 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                 return (
                   <div key={item.id} className="flex flex-col gap-1 group">
                     <div className="flex gap-2 items-center bg-white p-1 rounded-lg border border-transparent hover:border-slate-200 transition-colors">
-                      <div className="flex-1 relative">
+                      <div className="flex-1 relative flex items-center bg-white rounded-lg border border-transparent hover:border-slate-200 transition-colors focus-within:border-blue-500 focus-within:bg-blue-50/30">
                         <input
                           type="text"
                           placeholder="Description"
-                          className={`w-full border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-blue-50/30 px-2 py-1.5 transition-colors focus:outline-none ${item.isLabor ? 'pr-14' : ''}`}
+                          className="w-full bg-transparent px-2 py-1.5 transition-colors focus:outline-none"
                           value={item.description}
                           onChange={(e) =>
                             handleLineItemChange(
@@ -976,11 +975,32 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                             )
                           }
                         />
-                        {item.isLabor && (
-                          <div className="absolute right-2 top-2 text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded flex items-center gap-1 border border-orange-200 pointer-events-none">
-                            <i className="fas fa-hard-hat"></i> CIS
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1.5 px-2 border-l border-slate-200 my-1 py-0.5">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider cursor-pointer whitespace-nowrap select-none">
+                            Labour
+                          </label>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={item.isLabor}
+                            onClick={() =>
+                              handleLineItemChange(
+                                item.id,
+                                "isLabor",
+                                !item.isLabor
+                              )
+                            }
+                            className={`w-8 h-4 rounded-full flex items-center transition-colors focus:outline-none ${
+                              item.isLabor ? "bg-orange-500" : "bg-slate-300 hover:bg-slate-400"
+                            }`}
+                          >
+                            <span
+                              className={`w-3 h-3 bg-white rounded-full shadow block transform transition-transform ${
+                                item.isLabor ? "translate-x-4" : "translate-x-1"
+                              }`}
+                            />
+                          </button>
+                        </div>
                       </div>
                       <div className="w-16">
                         <input
@@ -1040,27 +1060,6 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                             </option>
                           ))}
                         </select>
-                      </div>
-                      {/* CIS Labor Checkbox */}
-                      <div className="w-20 flex justify-center items-center">
-                        <button
-                          type="button"
-                          title="Subject to CIS deduction"
-                          className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-colors flex items-center gap-1.5 focus:outline-none w-14 justify-center ${
-                            item.isLabor
-                              ? "bg-orange-100 text-orange-700 border-orange-300 shadow-sm"
-                              : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100 hover:text-slate-600"
-                          }`}
-                          onClick={() =>
-                            handleLineItemChange(
-                              item.id,
-                              "isLabor",
-                              !item.isLabor,
-                            )
-                          }
-                        >
-                          {item.isLabor ? <><i className="fas fa-check"></i> CIS</> : "NO"}
-                        </button>
                       </div>
                       <div className="w-24 px-2 text-right font-semibold text-slate-700 text-sm flex items-center justify-end">
                         {currencySymbol(invoice.currency)}

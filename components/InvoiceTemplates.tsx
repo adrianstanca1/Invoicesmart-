@@ -143,9 +143,10 @@ export const ModernTemplate: React.FC<TemplateProps> = ({
                   <div className="font-medium text-slate-800">
                     {item.description}
                   </div>
-                  {invoice.cisRate > 0 && item.isLabor && (
-                    <span className="text-[10px] text-emerald-700 mt-1.5 inline-flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded font-medium border border-emerald-100">
-                      <i className="fas fa-hard-hat"></i> Subject to CIS
+                  {item.isLabor && (
+                    <span className="text-[10px] text-orange-700 mt-1.5 inline-flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded font-medium border border-orange-100">
+                      <i className="fas fa-hard-hat"></i> Labour
+                      {invoice.cisRate > 0 && " (CIS)"}
                     </span>
                   )}
                 </td>
@@ -403,9 +404,10 @@ export const ClassicTemplate: React.FC<TemplateProps> = ({
                   <div className="font-medium text-slate-900">
                     {item.description}
                   </div>
-                  {invoice.cisRate > 0 && item.isLabor && (
-                    <span className="text-[10px] text-emerald-700 mt-1.5 inline-flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded font-medium border border-emerald-100">
-                      <i className="fas fa-hard-hat"></i> Subject to CIS
+                  {item.isLabor && (
+                    <span className="text-[10px] text-orange-700 mt-1.5 inline-flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded font-medium border border-orange-100">
+                      <i className="fas fa-hard-hat"></i> Labour
+                      {invoice.cisRate > 0 && " (CIS)"}
                     </span>
                   )}
                 </td>
@@ -626,9 +628,10 @@ export const MinimalTemplate: React.FC<TemplateProps> = ({
               </div>
               <div className="col-span-6 pl-4">
                 <p className="font-medium text-lg">{item.description}</p>
-                {invoice.cisRate > 0 && item.isLabor && (
-                  <span className="text-[10px] text-emerald-700 mt-1.5 inline-flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded font-medium border border-emerald-100">
-                    <i className="fas fa-hard-hat"></i> Subject to CIS
+                {item.isLabor && (
+                  <span className="text-[10px] text-orange-700 mt-1.5 inline-flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded font-medium border border-orange-100">
+                    <i className="fas fa-hard-hat"></i> Labour
+                    {invoice.cisRate > 0 && " (CIS)"}
                   </span>
                 )}
               </div>
