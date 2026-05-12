@@ -74,6 +74,11 @@ const invokeLLM = async (
   }
 };
 
+export const generateAIChatResponse = async (prompt: string): Promise<string> => {
+  const result = await invokeLLM(prompt, false);
+  return result || "I couldn't generate a response.";
+};
+
 export const chatWithAccountant = async (
   message: string,
   ledger: Transaction[],

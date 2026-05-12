@@ -144,8 +144,8 @@ export const ModernTemplate: React.FC<TemplateProps> = ({
                     {item.description}
                   </div>
                   {invoice.cisRate > 0 && item.isLabor && (
-                    <span className="text-xs text-slate-400 mt-1 inline-block bg-slate-100 px-1.5 py-0.5 rounded">
-                      Subject to CIS
+                    <span className="text-[10px] text-emerald-700 mt-1.5 inline-flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded font-medium border border-emerald-100">
+                      <i className="fas fa-hard-hat"></i> Subject to CIS
                     </span>
                   )}
                 </td>
@@ -404,8 +404,8 @@ export const ClassicTemplate: React.FC<TemplateProps> = ({
                     {item.description}
                   </div>
                   {invoice.cisRate > 0 && item.isLabor && (
-                    <span className="text-xs italic text-slate-500 mt-1 inline-block">
-                      Subject to CIS
+                    <span className="text-[10px] text-emerald-700 mt-1.5 inline-flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded font-medium border border-emerald-100">
+                      <i className="fas fa-hard-hat"></i> Subject to CIS
                     </span>
                   )}
                 </td>
@@ -627,8 +627,8 @@ export const MinimalTemplate: React.FC<TemplateProps> = ({
               <div className="col-span-6 pl-4">
                 <p className="font-medium text-lg">{item.description}</p>
                 {invoice.cisRate > 0 && item.isLabor && (
-                  <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500 mt-1 inline-block">
-                    Subject to CIS
+                  <span className="text-[10px] text-emerald-700 mt-1.5 inline-flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded font-medium border border-emerald-100">
+                    <i className="fas fa-hard-hat"></i> Subject to CIS
                   </span>
                 )}
               </div>

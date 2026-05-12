@@ -17,6 +17,7 @@ const Reports = lazy(() => import("./components/Reports"));
 const Ledger = lazy(() => import("./components/Ledger"));
 const AIAccountant = lazy(() => import("./components/AIAccountant"));
 const AuditTrail = lazy(() => import("./components/AuditTrail"));
+const Settings = lazy(() => import("./components/Settings"));
 
 import { Invoice, Client, Transaction, TaxRule, AuditLog } from "./types";
 
@@ -110,6 +111,12 @@ const NavBar = () => {
             className={`px-3 py-2 rounded-lg transition-all font-medium text-sm whitespace-nowrap ${isActive("/audit")}`}
           >
             <i className="fas fa-list-alt mr-2"></i>Audit Trail
+          </Link>
+          <Link
+            to="/settings"
+            className={`px-3 py-2 rounded-lg transition-all font-medium text-sm whitespace-nowrap ${isActive("/settings")}`}
+          >
+            <i className="fas fa-cog mr-2"></i>Settings
           </Link>
         </div>
       </div>
@@ -678,6 +685,17 @@ const App: React.FC = () => {
                   initial={{ opacity: 0, y: 10 }}
                 >
                   <AuditTrail logs={auditLogs} />
+                </motion.div>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <motion.div
+                  animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, y: 10 }}
+                >
+                  <Settings />
                 </motion.div>
               }
             />

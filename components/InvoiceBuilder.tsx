@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Link } from "react-router-dom";
 import {
   Invoice,
   LineItem,
@@ -84,7 +85,6 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
     null,
   );
   const [isScanning, setIsScanning] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [apiKeys, setApiKeys] = useState(() => {
     try {
       return JSON.parse(
@@ -129,14 +129,6 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
 
     return () => clearTimeout(timer);
   }, [invoice, saveStatus, onSave]);
-
-  const handleSaveApiKeys = (keys: any) => {
-    setApiKeys(keys);
-    localStorage.setItem("appSettings", JSON.stringify(keys));
-    // also persist to paymentApiKeys for backward compatibility if needed, or just keep appSettings
-    localStorage.setItem("paymentApiKeys", JSON.stringify(keys));
-    setIsSettingsOpen(false);
-  };
 
   const handleChange = (field: keyof Invoice, value: any) => {
     setInvoice((prev) => ({ ...prev, [field]: value }));
@@ -493,13 +485,13 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
             <h2 className="text-xl font-bold text-slate-700">Invoice Editor</h2>
-            <button
-              onClick={() => setIsSettingsOpen(true)}
+            <Link
+              to="/settings"
               className="text-slate-500 hover:text-indigo-600 transition-colors"
-              title="Integration Settings"
+              title="Global Settings"
             >
               <i className="fas fa-cog"></i>
-            </button>
+            </Link>
           </div>
           <div className="text-sm font-medium">
             {saveStatus === "saving" && (
@@ -922,11 +914,11 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                 return (
                   <div key={item.id} className="flex flex-col gap-1 group">
                     <div className="flex gap-2 items-center bg-white p-1 rounded-lg border border-transparent hover:border-slate-200 transition-colors">
-                      <div className="flex-1">
+                      <div className="flex-1 relative">
                         <input
                           type="text"
                           placeholder="Description"
-                          className="w-full border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-blue-50/30 px-2 py-1.5 transition-colors focus:outline-none"
+                          className={`w-full border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-blue-50/30 px-2 py-1.5 transition-colors focus:outline-none ${item.isLabor ? 'pr-14' : ''}`}
                           value={item.description}
                           onChange={(e) =>
                             handleLineItemChange(
@@ -936,6 +928,11 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                             )
                           }
                         />
+                        {item.isLabor && (
+                          <div className="absolute right-2 top-2 text-[10px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded flex items-center gap-1 border border-emerald-100 pointer-events-none">
+                            <i className="fas fa-hard-hat"></i> CIS
+                          </div>
+                        )}
                       </div>
                       <div className="w-16">
                         <input
@@ -1475,221 +1472,6 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
         </div>
       </div>
 
-      {/* Settings Modal */}
-      {isSettingsOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full overflow-hidden animate-fade-in">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h3 className="font-bold text-lg text-slate-800">
-                <i className="fas fa-cog text-slate-400 mr-2"></i> Integration
-                Settings
-              </h3>
-              <button
-                onClick={() => setIsSettingsOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-              {/* AI Intelligence Engine Config */}
-              <div className="space-y-3 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
-                <h4 className="font-semibold text-indigo-900 flex items-center gap-2">
-                  <i className="fas fa-brain text-indigo-500"></i> Intelligence
-                  Engine
-                </h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                      AI Provider
-                    </label>
-                    <select
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-1 focus:ring-indigo-500 transition-colors"
-                      value={apiKeys.aiProvider || "gemini"}
-                      onChange={(e) =>
-                        setApiKeys({ ...apiKeys, aiProvider: e.target.value })
-                      }
-                    >
-                      <option value="gemini">Google Gemini</option>
-                      <option value="ollama">Ollama (Local LLM)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                      Model Name
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-1 focus:ring-indigo-500 transition-colors"
-                      placeholder="e.g. llama3, gemini-3.1-pro-preview"
-                      value={apiKeys.aiModel || "gemini-3.1-pro-preview"}
-                      onChange={(e) =>
-                        setApiKeys({ ...apiKeys, aiModel: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-                {apiKeys.aiProvider === "ollama" && (
-                  <div className="pt-2">
-                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                      Ollama Endpoint API URL
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-1 focus:ring-indigo-500 transition-colors"
-                      placeholder="http://localhost:11434"
-                      value={apiKeys.aiEndpoint || "http://localhost:11434"}
-                      onChange={(e) =>
-                        setApiKeys({ ...apiKeys, aiEndpoint: e.target.value })
-                      }
-                    />
-                    <p className="text-[10px] text-slate-500 mt-1">
-                      Ensure your local Ollama instance is running and accepts
-                      CORS requests if running from browser.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Invoice Number Generation */}
-              <div className="space-y-3">
-                <h4 className="font-semibold text-slate-700 flex items-center gap-2">
-                  <i className="fas fa-hashtag text-slate-500"></i> Invoice
-                  Number Generation
-                </h4>
-                <p className="text-xs text-slate-500">
-                  Customize how new invoice numbers are created.
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">
-                      Prefix
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full border rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white transition-colors"
-                      placeholder="INV-"
-                      value={apiKeys.invoicePrefix || ""}
-                      onChange={(e) =>
-                        setApiKeys({
-                          ...apiKeys,
-                          invoicePrefix: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col justify-center pt-5">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={apiKeys.autoIncrement !== false}
-                        onChange={(e) =>
-                          setApiKeys({
-                            ...apiKeys,
-                            autoIncrement: e.target.checked,
-                          })
-                        }
-                      />
-                      <span className="text-sm text-slate-700 font-medium">
-                        Auto-increment
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <hr className="border-slate-100" />
-
-              {/* Stripe Config */}
-              <div className="space-y-3">
-                <h4 className="font-semibold text-slate-700 flex items-center gap-2">
-                  <i className="fab fa-stripe text-indigo-500 text-xl"></i>{" "}
-                  Stripe Integration
-                </h4>
-                <p className="text-xs text-slate-500">
-                  Configure your Stripe API keys to generate secure checkout
-                  sessions.
-                </p>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">
-                    Publishable Key
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white transition-colors"
-                    placeholder="pk_test_..."
-                    value={apiKeys.stripePublishableKey || ""}
-                    onChange={(e) =>
-                      setApiKeys({
-                        ...apiKeys,
-                        stripePublishableKey: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">
-                    Secret Key
-                  </label>
-                  <input
-                    type="password"
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white transition-colors"
-                    placeholder="sk_test_..."
-                    value={apiKeys.stripeSecretKey || ""}
-                    onChange={(e) =>
-                      setApiKeys({
-                        ...apiKeys,
-                        stripeSecretKey: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-              </div>
-
-              <hr className="border-slate-100" />
-
-              {/* PayPal Config */}
-              <div className="space-y-3">
-                <h4 className="font-semibold text-slate-700 flex items-center gap-2">
-                  <i className="fab fa-paypal text-blue-500 text-xl"></i> PayPal
-                  Integration
-                </h4>
-                <p className="text-xs text-slate-500">
-                  Configure your PayPal Client ID for instant payments.
-                </p>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">
-                    Client ID
-                  </label>
-                  <input
-                    type="password"
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white transition-colors"
-                    placeholder="Enter PayPal Client ID"
-                    value={apiKeys.paypalClientId || ""}
-                    onChange={(e) =>
-                      setApiKeys({ ...apiKeys, paypalClientId: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-              <button
-                className="px-4 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-200 transition-colors"
-                onClick={() => setIsSettingsOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="px-6 py-2 rounded-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
-                onClick={() => handleSaveApiKeys(apiKeys)}
-              >
-                Save Settings
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

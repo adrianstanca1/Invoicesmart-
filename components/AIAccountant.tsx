@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Invoice, Client, Transaction, TaxRule } from '../types';
-import { GoogleGenAI } from "@google/genai";
+import { generateAIChatResponse } from '../services/aiService';
 
 interface AIAccountantProps {
   invoices: Invoice[];
@@ -109,23 +109,16 @@ const AIAccountant: React.FC<AIAccountantProps> = ({ invoices, clients, transact
       const systemPrompt = `You are an expert AI Accountant for a small business. 
       You have access to the following financial data: ${JSON.stringify(context)}.
       
-      Answer the user's question accurately based on this data. 
-      If asked about tax, refer to the specific tax rules available.
-      Be professional, helpful, and concise.
-      If you need to perform a calculation, explain your working.`;
-
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      Conversation History:
+      ${messages.map(m => `${m.role === 'model' ? 'AI' : 'User'}: ${m.text}`).join('\n')}
       
-      const chat = ai.chats.create({
-        model: "gemini-3-flash-preview",
-        history: [
-          { role: "user", parts: [{ text: systemPrompt }] },
-          { role: "model", parts: [{ text: "Understood. I am ready to assist with accounting inquiries." }] }
-        ]
-      });
+      User's New Question: "${userMessage}"
+      
+      Answer the user's question accurately based on this data and the conversation history. 
+      If asked about tax, refer to the specific tax rules available.
+      Be professional, helpful, and concise. Make sure to respond to the prompt directly, and provide any calculations or explanations needed.`;
 
-      const result = await chat.sendMessage({ message: userMessage });
-      const response = result.text;
+      const response = await generateAIChatResponse(systemPrompt);
 
       setMessages(prev => [...prev, { role: 'model', text: response || "I couldn't generate a response." }]);
     } catch (error) {
