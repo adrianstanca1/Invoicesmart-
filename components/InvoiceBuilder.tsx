@@ -155,7 +155,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
         toEmail: client.email,
         toAddress: client.address,
         clientVatNumber: client.vatNumber || "",
-        terms: client.defaultTerms || prev.terms,
+        ...(client.defaultTerms && { terms: client.defaultTerms }),
       }));
       setSaveStatus("unsaved");
     }

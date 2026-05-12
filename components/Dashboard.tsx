@@ -80,6 +80,12 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const netProfit = paidAmount - totalExpenses;
 
+    const collectionRatio =
+      totalRevenue > 0 ? (paidAmount / totalRevenue) * 100 : 0;
+    const netProfitMargin = paidAmount > 0 ? (netProfit / paidAmount) * 100 : 0;
+    const avgInvoiceValue =
+      invoices.length > 0 ? totalRevenue / invoices.length : 0;
+
     return {
       totalRevenue,
       paidAmount,
@@ -87,6 +93,9 @@ const Dashboard: React.FC<DashboardProps> = ({
       totalCount: invoices.length,
       totalExpenses,
       netProfit,
+      collectionRatio,
+      netProfitMargin,
+      avgInvoiceValue,
     };
   }, [invoices, transactions]);
 
@@ -211,6 +220,55 @@ const Dashboard: React.FC<DashboardProps> = ({
           >
             £{stats.netProfit.toLocaleString()}
           </div>
+        </div>
+      </div>
+
+      {/* Key Financial Ratios */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 my-8">
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-indigo-500">
+          <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">
+            Collection Ratio
+          </div>
+          <div className="flex items-end gap-3">
+            <div className="text-2xl font-bold text-slate-800">
+              {stats.collectionRatio.toFixed(1)}%
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">
+            Cash collected vs Billed
+          </p>
+        </div>
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-emerald-500">
+          <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">
+            Net Profit Margin
+          </div>
+          <div className="flex items-end gap-3">
+            <div
+              className={`text-2xl font-bold ${stats.netProfitMargin >= 0 ? "text-slate-800" : "text-red-600"}`}
+            >
+              {stats.netProfitMargin.toFixed(1)}%
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">
+            Profit per £1 of cash collected
+          </p>
+        </div>
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-blue-500">
+          <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">
+            Avg Invoice Value
+          </div>
+          <div className="flex items-end gap-3">
+            <div className="text-2xl font-bold text-slate-800">
+              £
+              {stats.avgInvoiceValue.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">
+            Average value of billed invoices
+          </p>
         </div>
       </div>
 
