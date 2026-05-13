@@ -88,13 +88,16 @@ ssh-keygen -t ed25519 -C "github-deploy" -f ~/.ssh/invoicesmart_deploy -N ""
 
 In **GitHub → Settings → Secrets and variables → Actions**:
 
-| Type     | Name          | Value                                                                |
-| -------- | ------------- | -------------------------------------------------------------------- |
-| Secret   | `VPS_SSH_KEY` | Contents of `~/.ssh/invoicesmart_deploy` (the **private** key).      |
-| Secret   | `VPS_HOST`    | Your VPS hostname or IP (e.g. `app.yourdomain.com`).                 |
-| Variable | `VPS_DOMAIN`  | Public domain the SPA is served from (e.g. `app.yourdomain.com`).    |
+| Type     | Name              | Value                                                                |
+| -------- | ----------------- | -------------------------------------------------------------------- |
+| Secret   | `VPS_SSH_KEY`     | Contents of `~/.ssh/invoicesmart_deploy` (the **private** key).      |
+| Secret   | `VPS_HOST`        | Your VPS hostname or IP (e.g. `app.yourdomain.com`).                 |
+| Variable | `VPS_DOMAIN`      | Public domain the SPA is served from (e.g. `app.yourdomain.com`).    |
+| Variable | `DEPLOY_ENABLED`  | Set to `true` to enable automatic deploys on push to `main`.         |
 
 Pass the **public** key (`~/.ssh/invoicesmart_deploy.pub`) to the bootstrap script as `DEPLOY_KEY_PUB`, or paste it later into `/home/deploy/.ssh/authorized_keys` on the VPS.
+
+The deploy workflow is **gated by `DEPLOY_ENABLED`**, so it stays quiet on every merge until the secrets above are wired up. Manual `workflow_dispatch` runs from the Actions tab always execute regardless of the flag, so the first deploy can be triggered without flipping anything.
 
 ### 3. Deploy
 
