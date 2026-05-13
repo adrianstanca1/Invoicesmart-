@@ -1,0 +1,203 @@
+name: Bootstrap VPS (one-shot)
+
+# One-shot bootstrap that turns a fresh root-only Ubuntu VPS into a
+# fully-configured Invoicesmart host:
+#   - installs nginx, certbot, Ollama, pulls the model
+#   - creates the 'deploy' user keyed for the regular Deploy workflow
+#   - hardens SSH (disables root login + password auth) once the
+#     deploy user is in place
+#
+# Triggered manually from the Actions tab. The root password is taken
+# as a workflow_dispatch input (sensitive, masked, never persisted).
+# After this runs successfully, password auth is OFF — only the SSH
+# key set in VPS_SSH_KEY can log in as 'deploy'.
+
+on:
+  workflow_dispatch:
+    inputs:
+      root_password:
+        description: 'Initial root password (one-time; SSH password auth is disabled at the end of this run). LEAVE BLANK to use the existing SSH key in VPS_SSH_KEY instead.'
+        required: false
+        type: string
+      host_override:
+        description: 'Override VPS_HOST secret (leave blank to use repo secret)'
+        required: false
+        type: string
+      domain_override:
+        description: 'Override VPS_DOMAIN variable (leave blank to use repo variable)'
+        required: false
+        type: string
+      email:
+        description: "Email for Let's Encrypt renewal notices"
+        required: false
+        type: string
+        default: 'admin@cortexbuildpro.com'
+      ollama_model:
+        description: 'Ollama model to pre-pull (e.g. llama3.2-vision:11b)'
+        required: false
+        type: string
+        default: 'llama3.2-vision:11b'
+      harden_ssh:
+        description: 'Disable root login + password auth at the end (recommended)'
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: bootstrap-vps
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ inputs.domain_override || vars.VPS_DOMAIN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve targets
+        id: targets
+        run: |
+          DOMAIN="${{ inputs.domain_override || vars.VPS_DOMAIN }}"
+          HOST="${{ inputs.host_override || secrets.VPS_HOST }}"
+          if [[ -z "$DOMAIN" ]]; then echo "::error::Set vars.VPS_DOMAIN or pass domain_override."; exit 1; fi
+          if [[ -z "$HOST" ]]; then echo "::error::Set secrets.VPS_HOST or pass host_override."; exit 1; fi
+          echo "domain=$DOMAIN" >> "$GITHUB_OUTPUT"
+          echo "host=$HOST" >> "$GITHUB_OUTPUT"
+
+      - name: Derive deploy public key from VPS_SSH_KEY
+        id: deploykey
+        env:
+          DEPLOY_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          if [[ -z "$DEPLOY_KEY" ]]; then
+            echo "::error::secrets.VPS_SSH_KEY is required so the bootstrap can install the deploy user's authorized_keys."
+            exit 1
+          fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          umask 077
+          printf '%s' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          PUB=$(ssh-keygen -y -f ~/.ssh/deploy_key)
+          echo "::add-mask::$PUB"
+          # Persist the public key into a file the next steps read; never echo it.
+          echo "$PUB" > ~/.ssh/deploy_key.pub
+
+      - name: Trust VPS host key
+        run: |
+          ssh-keyscan -H "${{ steps.targets.outputs.host }}" >> ~/.ssh/known_hosts
+
+      - name: Install sshpass
+        if: ${{ inputs.root_password != '' }}
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y sshpass
+
+      - name: Choose authentication mode
+        id: auth
+        env:
+          ROOT_PW: ${{ inputs.root_password }}
+        run: |
+          if [[ -n "$ROOT_PW" ]]; then
+            echo "mode=password" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=key" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run setup-vps.sh on the VPS (password auth)
+        if: ${{ steps.auth.outputs.mode == 'password' }}
+        env:
+          SSHPASS: ${{ inputs.root_password }}
+          DOMAIN: ${{ steps.targets.outputs.domain }}
+          HOST: ${{ steps.targets.outputs.host }}
+          EMAIL: ${{ inputs.email }}
+          OLLAMA_MODEL: ${{ inputs.ollama_model }}
+        run: |
+          PUB_KEY=$(cat ~/.ssh/deploy_key.pub)
+          # Stream the bootstrap script to the VPS via stdin and feed env vars on the command line.
+          sshpass -e ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=no \
+            "root@${HOST}" \
+            "DOMAIN='${DOMAIN}' EMAIL='${EMAIL}' OLLAMA_MODEL='${OLLAMA_MODEL}' DEPLOY_KEY_PUB='${PUB_KEY}' bash -s" \
+            < infra/setup-vps.sh
+
+      - name: Run setup-vps.sh on the VPS (SSH key)
+        if: ${{ steps.auth.outputs.mode == 'key' }}
+        env:
+          DOMAIN: ${{ steps.targets.outputs.domain }}
+          HOST: ${{ steps.targets.outputs.host }}
+          EMAIL: ${{ inputs.email }}
+          OLLAMA_MODEL: ${{ inputs.ollama_model }}
+        run: |
+          PUB_KEY=$(cat ~/.ssh/deploy_key.pub)
+          # Try root with the deploy key first; fall back to the deploy user.
+          for U in root deploy; do
+            if ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=no \
+                 "$U@${HOST}" "echo connected as $U" 2>/dev/null; then
+              SSH_USER="$U"
+              break
+            fi
+          done
+          if [[ -z "${SSH_USER:-}" ]]; then
+            echo "::error::Neither root nor deploy accept the SSH key. Provide root_password to bootstrap from scratch."
+            exit 1
+          fi
+          if [[ "$SSH_USER" == "root" ]]; then
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "root@${HOST}" \
+              "DOMAIN='${DOMAIN}' EMAIL='${EMAIL}' OLLAMA_MODEL='${OLLAMA_MODEL}' DEPLOY_KEY_PUB='${PUB_KEY}' bash -s" \
+              < infra/setup-vps.sh
+          else
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "deploy@${HOST}" \
+              "sudo DOMAIN='${DOMAIN}' EMAIL='${EMAIL}' OLLAMA_MODEL='${OLLAMA_MODEL}' DEPLOY_KEY_PUB='${PUB_KEY}' bash -s" \
+              < infra/setup-vps.sh
+          fi
+
+      - name: Harden SSH (disable root login + password auth)
+        if: ${{ inputs.harden_ssh && steps.auth.outputs.mode == 'password' }}
+        env:
+          SSHPASS: ${{ inputs.root_password }}
+          HOST: ${{ steps.targets.outputs.host }}
+        run: |
+          sshpass -e ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=no \
+            "root@${HOST}" bash <<'EOF'
+            set -e
+            sed -i \
+              -e 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' \
+              -e 's/^#\?PermitRootLogin.*/PermitRootLogin prohibit-password/' \
+              /etc/ssh/sshd_config
+            systemctl reload ssh 2>/dev/null || systemctl reload sshd
+            echo "SSH hardened: password auth off, root login key-only."
+          EOF
+
+      - name: Verify deploy user can SSH in via key
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            "deploy@${{ steps.targets.outputs.host }}" 'echo "deploy user OK on $(hostname)"'
+
+      - name: Smoke test the public site
+        env:
+          DOMAIN: ${{ steps.targets.outputs.domain }}
+        run: |
+          echo "Probing https://$DOMAIN/ ..."
+          if curl -fsS --retry 3 --retry-delay 3 "https://$DOMAIN/" -o /dev/null; then
+            echo "HTTPS OK"
+          else
+            echo "::warning::HTTPS not reachable yet (DNS may still be propagating, or certbot deferred TLS). Try http://$DOMAIN/."
+            curl -fsS --retry 3 --retry-delay 3 "http://$DOMAIN/" -o /dev/null && echo "HTTP OK" || echo "::warning::HTTP also unreachable from this runner."
+          fi
+
+      - name: Summary
+        env:
+          DOMAIN: ${{ steps.targets.outputs.domain }}
+        run: |
+          {
+            echo "## Bootstrap complete"
+            echo
+            echo "- Site:    https://$DOMAIN/"
+            echo "- LLM:     https://$DOMAIN/ollama/api/tags"
+            echo "- Deploys: push to \`main\` (set DEPLOY_ENABLED=true to auto-deploy) or trigger Deploy to VPS manually."
+            echo
+            echo "Rotate the root password you pasted; SSH password auth is now disabled."
+          } >> "$GITHUB_STEP_SUMMARY"

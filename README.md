@@ -34,6 +34,23 @@ Open <http://localhost:3000>, then go to **Settings → Local Intelligence Engin
 
 Live at <https://invoicesmart.cortexbuildpro.com> — served from a single VPS (`72.62.132.43`) that hosts the SPA on nginx and reverse-proxies `/ollama/` to a local Ollama instance bound to `127.0.0.1:11434`. The browser only ever talks to the public domain; the inference port is never exposed.
 
+### One-click bootstrap from the Actions tab
+
+A fresh VPS can be provisioned **without ever opening a terminal**:
+
+1. Add a DNS A record for the domain (e.g. `invoicesmart` → `72.62.132.43`) at your registrar.
+2. In **Settings → Secrets and variables → Actions**, set:
+   - Secret `VPS_SSH_KEY` — a freshly-generated ed25519 **private** key.
+   - Secret `VPS_HOST` — VPS IP or hostname.
+   - Variable `VPS_DOMAIN` — public domain.
+3. Open **Actions → Bootstrap VPS (one-shot) → Run workflow**, paste the VPS root password, and click Run.
+
+The workflow installs nginx + certbot + Ollama, pulls the model, creates the `deploy` user with the public half of `VPS_SSH_KEY` in `authorized_keys`, then disables SSH password auth and root login. Once it's green, set `DEPLOY_ENABLED=true` and every push to `main` deploys automatically.
+
+If the cert request fails because DNS isn't propagated yet, the site is left serving HTTP and you can re-run the workflow (or `sudo certbot --nginx -d <domain> --redirect` on the VPS) once DNS is live.
+
+
+
 | Layer | What & where |
 | --- | --- |
 | SPA | `/var/www/invoicesmart/` (rsync target of `dist/`) |

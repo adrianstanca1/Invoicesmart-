@@ -111,9 +111,22 @@ nginx -t
 systemctl reload nginx
 
 echo "==> Requesting Let's Encrypt certificate for $DOMAIN"
-certbot --nginx --non-interactive --agree-tos -m "$EMAIL" -d "$DOMAIN" --redirect
+TLS_OK=0
+if certbot --nginx --non-interactive --agree-tos -m "$EMAIL" -d "$DOMAIN" --redirect; then
+  TLS_OK=1
+else
+  echo "WARN: certbot failed (most often: DNS for $DOMAIN doesn't resolve to this VPS yet)."
+  echo "      The site is currently serving over HTTP only. Re-run this script once DNS"
+  echo "      propagates, or run:  sudo certbot --nginx -d $DOMAIN --redirect"
+fi
 
 echo
 echo "==> Done."
-echo "Open https://$DOMAIN once your GitHub Action has uploaded dist/."
-echo "Test the LLM proxy:  curl -fsS https://$DOMAIN/ollama/api/tags"
+if [[ $TLS_OK -eq 1 ]]; then
+  echo "Open https://$DOMAIN once your GitHub Action has uploaded dist/."
+  echo "Test the LLM proxy:  curl -fsS https://$DOMAIN/ollama/api/tags"
+else
+  echo "Open http://$DOMAIN once your GitHub Action has uploaded dist/."
+  echo "Test the LLM proxy:  curl -fsS http://$DOMAIN/ollama/api/tags"
+  echo "Re-run this script (or just certbot) once DNS for $DOMAIN points to this host to enable HTTPS."
+fi
