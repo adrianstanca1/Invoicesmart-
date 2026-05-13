@@ -8,8 +8,8 @@ import {
   AIProviderConfig,
 } from "../types";
 
-const DEFAULT_ENDPOINT = "http://localhost:11434";
-const DEFAULT_MODEL = "llama3.1";
+const DEFAULT_ENDPOINT = import.meta.env.PROD ? "/ollama" : "http://localhost:11434";
+const DEFAULT_MODEL = "llama3.2-vision:11b";
 
 export const getAIConfig = (): AIProviderConfig => {
   try {

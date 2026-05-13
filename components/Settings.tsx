@@ -12,9 +12,12 @@ interface AppSettings {
   paypalClientId: string;
 }
 
+const PROD_ENDPOINT = "/ollama";
+const DEV_ENDPOINT = "http://localhost:11434";
+
 const DEFAULT_SETTINGS: AppSettings = {
-  aiModel: "llama3.1",
-  aiEndpoint: "http://localhost:11434",
+  aiModel: "llama3.2-vision:11b",
+  aiEndpoint: import.meta.env.PROD ? PROD_ENDPOINT : DEV_ENDPOINT,
   aiApiKey: "",
   invoicePrefix: "INV-",
   autoIncrement: true,
