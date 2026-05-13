@@ -11,16 +11,30 @@ interface ReportsProps {
 const Reports: React.FC<ReportsProps> = ({ invoices }) => {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  const [selectedClient, setSelectedClient] = useState<string>('');
+
+  const uniqueClients = useMemo(() => {
+    return Array.from(new Set(invoices.map(inv => inv.toName))).filter(Boolean).sort();
+  }, [invoices]);
 
   const filteredInvoices = useMemo(() => {
     return invoices.filter(inv => {
-      if (!startDate && !endDate) return true;
-      const invDate = new Date(inv.date).getTime();
-      const start = startDate ? new Date(startDate).getTime() : -Infinity;
-      const end = endDate ? new Date(endDate).getTime() : Infinity;
-      return invDate >= start && invDate <= end;
+      let dateMatch = true;
+      if (startDate || endDate) {
+        const invDate = new Date(inv.date).getTime();
+        const start = startDate ? new Date(startDate).getTime() : -Infinity;
+        const end = endDate ? new Date(endDate).getTime() : Infinity;
+        dateMatch = invDate >= start && invDate <= end;
+      }
+      
+      let clientMatch = true;
+      if (selectedClient) {
+        clientMatch = inv.toName === selectedClient;
+      }
+      
+      return dateMatch && clientMatch;
     });
-  }, [invoices, startDate, endDate]);
+  }, [invoices, startDate, endDate, selectedClient]);
 
   const summary = useMemo(() => {
     let totalRevenue = 0;
@@ -206,12 +220,12 @@ const Reports: React.FC<ReportsProps> = ({ invoices }) => {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex gap-4 items-end mb-8">
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-end mb-8">
         <div>
           <label className="block text-sm font-medium text-slate-500 mb-1">Start Date</label>
           <input 
             type="date" 
-            className="border rounded px-3 py-2 text-slate-700"
+            className="border rounded px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
@@ -220,16 +234,29 @@ const Reports: React.FC<ReportsProps> = ({ invoices }) => {
           <label className="block text-sm font-medium text-slate-500 mb-1">End Date</label>
           <input 
             type="date" 
-            className="border rounded px-3 py-2 text-slate-700"
+            className="border rounded px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
           />
         </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-500 mb-1">Client</label>
+          <select
+            className="border rounded px-3 py-2 text-slate-700 min-w-[200px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={selectedClient}
+            onChange={(e) => setSelectedClient(e.target.value)}
+          >
+            <option value="">All Clients</option>
+            {uniqueClients.map(client => (
+              <option key={client} value={client}>{client}</option>
+            ))}
+          </select>
+        </div>
         <div className="ml-auto">
           <button 
             type="button" 
-            className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-            onClick={() => { setStartDate(''); setEndDate(''); }}
+            className="text-indigo-600 hover:text-indigo-800 text-sm font-medium px-4 py-2 hover:bg-slate-50 rounded transition-colors"
+            onClick={() => { setStartDate(''); setEndDate(''); setSelectedClient(''); }}
           >
             Clear Filters
           </button>

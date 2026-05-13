@@ -83,6 +83,7 @@ export const chatWithAccountant = async (
   message: string,
   ledger: Transaction[],
   invoices: Invoice[],
+  chatHistory: { role: "user" | "ai"; content: string }[] = [],
 ): Promise<{
   text: string;
   newTransactions?: Partial<Transaction>[];
@@ -113,6 +114,9 @@ export const chatWithAccountant = async (
       Data Context (All History):
       - Ledger: ${JSON.stringify(simplifiedLedger)}
       - Invoices: ${JSON.stringify(simplifiedInvoices)}
+      
+      Conversation History:
+      ${chatHistory.map(m => `${m.role === 'ai' ? 'Accountant' : 'User'}: ${m.content}`).join('\n')}
       
       User Message: "${message}"
       

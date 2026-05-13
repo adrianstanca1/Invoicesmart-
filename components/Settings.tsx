@@ -51,7 +51,14 @@ const Settings: React.FC = () => {
               <select
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-colors"
                 value={settings.aiProvider || "gemini"}
-                onChange={(e) => setSettings({ ...settings, aiProvider: e.target.value })}
+                onChange={(e) => {
+                  const newProvider = e.target.value;
+                  setSettings({ 
+                    ...settings, 
+                    aiProvider: newProvider,
+                    aiModel: newProvider === "ollama" ? (settings.aiProvider === "ollama" ? settings.aiModel : "llama3") : (settings.aiProvider === "gemini" ? settings.aiModel : "gemini-3.1-pro-preview")
+                  });
+                }}
               >
                 <option value="gemini">Google Gemini (Cloud)</option>
                 <option value="ollama">Ollama (Local LLM)</option>

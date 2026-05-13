@@ -219,7 +219,7 @@ const Ledger: React.FC<LedgerProps> = ({
     setChatMessages((prev) => [...prev, { role: "user", content: userMsg }]);
     setIsChatting(true);
 
-    const response = await chatWithAccountant(userMsg, transactions, invoices);
+    const response = await chatWithAccountant(userMsg, transactions, invoices, chatMessages);
 
     if (response.newTransactions && response.newTransactions.length > 0) {
       response.newTransactions.forEach((tx) => {
