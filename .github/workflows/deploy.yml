@@ -25,6 +25,12 @@ concurrency:
 
 jobs:
   build-and-deploy:
+    # Auto-deploy on push only when the repo opts in via vars.DEPLOY_ENABLED == 'true'.
+    # Manual runs from the Actions tab always execute so you can deploy ad hoc
+    # without enabling the auto path. Set DEPLOY_ENABLED under
+    # Settings → Secrets and variables → Actions → Variables once the VPS
+    # secrets are in place.
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: production
