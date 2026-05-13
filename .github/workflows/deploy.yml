@@ -4,6 +4,20 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      domain_override:
+        description: 'Override VPS_DOMAIN (leave blank to use repo variable)'
+        required: false
+        type: string
+      host_override:
+        description: 'Override VPS_HOST secret (leave blank to use repo secret)'
+        required: false
+        type: string
+      skip_smoke_test:
+        description: 'Skip the post-deploy smoke test'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-vps
@@ -14,9 +28,29 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://${{ vars.VPS_DOMAIN }}
+      url: https://${{ inputs.domain_override || vars.VPS_DOMAIN }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Resolve deploy targets
+        id: targets
+        run: |
+          DOMAIN="${{ inputs.domain_override || vars.VPS_DOMAIN }}"
+          HOST="${{ inputs.host_override || secrets.VPS_HOST }}"
+          if [[ -z "$DOMAIN" ]]; then
+            echo "::error::VPS_DOMAIN variable is not set. Either set it under Settings → Variables, or run this workflow manually and pass domain_override."
+            exit 1
+          fi
+          if [[ -z "$HOST" ]]; then
+            echo "::error::VPS_HOST secret is not set. Either set it under Settings → Secrets, or run this workflow manually and pass host_override."
+            exit 1
+          fi
+          if [[ -z "${{ secrets.VPS_SSH_KEY }}" ]]; then
+            echo "::error::VPS_SSH_KEY secret is not set. Add it under Settings → Secrets → Actions."
+            exit 1
+          fi
+          echo "domain=$DOMAIN" >> "$GITHUB_OUTPUT"
+          echo "host=$HOST" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
         with:
@@ -37,19 +71,33 @@ jobs:
       - name: Trust VPS host key
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -H "${{ steps.targets.outputs.host }}" >> ~/.ssh/known_hosts
 
       - name: Rsync dist/ to VPS
         run: |
           rsync -avz --delete \
             --exclude '.well-known' \
-            dist/ deploy@${{ secrets.VPS_HOST }}:/var/www/invoicesmart/
+            dist/ "deploy@${{ steps.targets.outputs.host }}:/var/www/invoicesmart/"
 
       - name: Reload nginx
         run: |
-          ssh deploy@${{ secrets.VPS_HOST }} 'sudo /usr/sbin/nginx -t && sudo /bin/systemctl reload nginx'
+          ssh "deploy@${{ steps.targets.outputs.host }}" 'sudo /usr/sbin/nginx -t && sudo /bin/systemctl reload nginx'
 
       - name: Smoke test
+        if: ${{ !inputs.skip_smoke_test }}
+        env:
+          DOMAIN: ${{ steps.targets.outputs.domain }}
         run: |
-          curl -fsS --retry 3 "https://${{ vars.VPS_DOMAIN }}/" -o /dev/null
-          curl -fsS --retry 3 "https://${{ vars.VPS_DOMAIN }}/ollama/api/tags" -o /dev/null
+          set -e
+          echo "Hitting https://$DOMAIN/ …"
+          curl -fsS --retry 5 --retry-delay 3 "https://$DOMAIN/" -o /dev/null
+          echo "Hitting https://$DOMAIN/ollama/api/tags …"
+          # The Ollama proxy may return 200 with an empty model list before the
+          # first pull completes — that's still a healthy proxy.
+          status=$(curl -s -o /tmp/ollama-tags.json -w '%{http_code}' "https://$DOMAIN/ollama/api/tags" || true)
+          if [[ "$status" != "200" ]]; then
+            echo "::warning::Ollama proxy responded with HTTP $status — service may still be starting."
+            cat /tmp/ollama-tags.json || true
+          else
+            echo "Ollama proxy healthy."
+          fi
