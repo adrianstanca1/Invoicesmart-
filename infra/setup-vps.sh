@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # One-shot VPS bootstrap for Invoicesmart.
 #
-# Usage (run as root or via sudo on the VPS):
-#   curl -fsSL https://raw.githubusercontent.com/adrianstanca1/Invoicesmart-/main/infra/setup-vps.sh \
-#     | sudo DOMAIN=app.example.com EMAIL=you@example.com OLLAMA_MODEL=llama3.2-vision:11b bash
+# The DEFAULT_* values below match the live production deployment.
+# Override any of them with environment variables, e.g.:
+#   sudo DOMAIN=staging.example.com EMAIL=you@example.com bash infra/setup-vps.sh
 #
-# Or, if you've already cloned the repo:
-#   sudo DOMAIN=app.example.com EMAIL=you@example.com bash infra/setup-vps.sh
+# Usage (run as root or via sudo on the VPS):
+#   curl -fsSL https://raw.githubusercontent.com/adrianstanca1/Invoicesmart-/main/infra/setup-vps.sh | sudo bash
 #
 # What it does:
 #   1. Installs nginx, certbot, curl, rsync
@@ -21,9 +21,13 @@
 
 set -euo pipefail
 
-DOMAIN="${DOMAIN:?Set DOMAIN, e.g. DOMAIN=app.example.com}"
-EMAIL="${EMAIL:?Set EMAIL for Let's Encrypt, e.g. EMAIL=you@example.com}"
-OLLAMA_MODEL="${OLLAMA_MODEL:-llama3.2-vision:11b}"
+DEFAULT_DOMAIN="invoicesmart.cortexbuildpro.com"
+DEFAULT_EMAIL="admin@cortexbuildpro.com"
+DEFAULT_OLLAMA_MODEL="llama3.2-vision:11b"
+
+DOMAIN="${DOMAIN:-$DEFAULT_DOMAIN}"
+EMAIL="${EMAIL:-$DEFAULT_EMAIL}"
+OLLAMA_MODEL="${OLLAMA_MODEL:-$DEFAULT_OLLAMA_MODEL}"
 DEPLOY_KEY_PUB="${DEPLOY_KEY_PUB:-}"
 WEB_ROOT="/var/www/invoicesmart"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
