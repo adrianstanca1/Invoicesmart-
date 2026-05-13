@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Typecheck & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Audit (production deps only)
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
+
+      - name: Verify production bundle uses same-origin LLM endpoint
+        run: |
+          if grep -ql 'localhost:11434' dist/assets/aiService-*.js; then
+            echo "::error::Production bundle still references http://localhost:11434"
+            exit 1
+          fi
+          if ! grep -ql '/ollama' dist/assets/aiService-*.js; then
+            echo "::error::Production bundle is missing the /ollama same-origin default"
+            exit 1
+          fi
+          echo "OK: prod bundle defaults to /ollama"
