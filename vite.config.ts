@@ -46,6 +46,20 @@ export default defineConfig(() => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      }
+      },
+      build: {
+        chunkSizeWarningLimit: 1100,
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+              'charts': ['recharts'],
+              'pdf-jspdf': ['jspdf', 'jspdf-autotable'],
+              'pdf-html2pdf': ['html2pdf.js'],
+              'motion': ['motion'],
+            },
+          },
+        },
+      },
     };
 });
