@@ -30,6 +30,20 @@ npm run dev
 
 Open <http://localhost:3000>, then go to **Settings → Local Intelligence Engine**, set the **Model Name** and **Endpoint URL**, and click **Test connection**.
 
+## Production deployment
+
+Live at <https://invoicesmart.cortexbuildpro.com> — served from a single VPS (`72.62.132.43`) that hosts the SPA on nginx and reverse-proxies `/ollama/` to a local Ollama instance bound to `127.0.0.1:11434`. The browser only ever talks to the public domain; the inference port is never exposed.
+
+| Layer | What & where |
+| --- | --- |
+| SPA | `/var/www/invoicesmart/` (rsync target of `dist/`) |
+| Web | nginx site from `infra/nginx.conf.template`, TLS via Let's Encrypt |
+| LLM | Ollama systemd service, model `llama3.2-vision:11b`, bound to localhost |
+| Deploys | `.github/workflows/deploy.yml` on push to `main`, SSH as the `deploy` user |
+| CI | `.github/workflows/ci.yml` on every PR (typecheck + build + bundle guard) |
+
+To redeploy the same build manually, in the **Actions** tab pick **Deploy to VPS → Run workflow** (or `gh workflow run "Deploy to VPS" -R adrianstanca1/Invoicesmart- --ref main`). The workflow accepts `domain_override` / `host_override` inputs in case you want to point the same artifact at a staging box.
+
 ## Deploy to Your Own VPS
 
 A complete, one-command deployment is wired up:
