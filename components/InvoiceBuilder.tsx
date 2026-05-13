@@ -103,6 +103,7 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
     }
   });
   const [previewZoom, setPreviewZoom] = useState(1);
+  const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "unsaved">(
     "saved",
   );
@@ -1524,6 +1525,33 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
 
               <div className="w-px h-6 bg-slate-200"></div>
 
+              {/* Device Toggles */}
+              <div className="flex bg-slate-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setPreviewDevice("desktop")}
+                  className={`w-8 h-6 flex items-center justify-center rounded-md transition-colors ${previewDevice === "desktop" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                  title="Desktop View"
+                >
+                  <i className="fas fa-desktop text-xs"></i>
+                </button>
+                <button
+                  onClick={() => setPreviewDevice("tablet")}
+                  className={`w-8 h-6 flex items-center justify-center rounded-md transition-colors ${previewDevice === "tablet" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                  title="Tablet View"
+                >
+                  <i className="fas fa-tablet-alt text-xs"></i>
+                </button>
+                <button
+                  onClick={() => setPreviewDevice("mobile")}
+                  className={`w-8 h-6 flex items-center justify-center rounded-md transition-colors ${previewDevice === "mobile" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                  title="Mobile View"
+                >
+                  <i className="fas fa-mobile-alt text-xs"></i>
+                </button>
+              </div>
+
+              <div className="w-px h-6 bg-slate-200"></div>
+
               {/* Zoom Controls */}
               <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
                 <button
@@ -1549,7 +1577,13 @@ const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
 
           <div className="overflow-auto w-full flex justify-center custom-scrollbar pb-12 relative flex-1">
             <div
-              className="shadow-2xl bg-white w-full max-w-[210mm] min-h-[297mm] transition-transform origin-top shrink-0 text-left border border-slate-200 absolute top-0"
+              className={`shadow-2xl bg-white w-full ${
+                previewDevice === "mobile" 
+                  ? "max-w-[375px]" 
+                  : previewDevice === "tablet" 
+                  ? "max-w-[768px]" 
+                  : "max-w-[210mm]"
+              } min-h-[297mm] transition-all duration-300 origin-top shrink-0 text-left border border-slate-200 absolute top-0`}
               style={{
                 transform: `scale(${previewZoom})`,
                 marginBottom: `${Math.max(0, (previewZoom - 1) * 297)}mm`,
