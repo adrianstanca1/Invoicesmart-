@@ -229,7 +229,7 @@ const Ledger: React.FC<LedgerProps> = ({
           description: tx.description || "New Transaction",
           amount: tx.amount || 0,
           type:
-            (tx.type as string).toLowerCase() === "income"
+            String(tx.type ?? "").toLowerCase() === "income"
               ? "Income"
               : "Expense",
           category: tx.category || "Uncategorized",

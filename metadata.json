@@ -1,5 +1,5 @@
 {
   "name": "Smart Invoice & Accounting AI",
-  "description": "A comprehensive invoice builder and accounting tool powered by Gemini AI. Features smart invoice generation, financial insights, and automated auditing.",
+  "description": "A comprehensive invoice builder and accounting tool powered by your local LLM (Ollama / OpenAI-compatible). Features smart invoice generation, financial insights, and automated auditing.",
   "requestFramePermissions": []
 }

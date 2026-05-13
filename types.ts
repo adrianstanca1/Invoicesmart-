@@ -140,7 +140,7 @@ export interface AuditLog {
 }
 
 export interface AIProviderConfig {
-  provider: 'gemini' | 'ollama';
+  provider: 'local';
   model: string;
   apiKey?: string;
   endpoint?: string;
