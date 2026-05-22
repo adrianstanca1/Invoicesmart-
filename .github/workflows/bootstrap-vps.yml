@@ -77,9 +77,15 @@ jobs:
           fi
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           umask 077
-          printf '%s' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          # Strip CR characters in case the secret was pasted from a Windows
+          # clipboard (ssh-keygen rejects keys that contain \r).
+          printf '%s\n' "$DEPLOY_KEY" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          PUB=$(ssh-keygen -y -f ~/.ssh/deploy_key)
+          if ! PUB=$(ssh-keygen -y -f ~/.ssh/deploy_key 2>&1); then
+            echo "::error::ssh-keygen could not read VPS_SSH_KEY. Re-paste the secret as an OpenSSH-format ed25519 or RSA private key (the file we generated starts with '-----BEGIN OPENSSH PRIVATE KEY-----')."
+            echo "::error::$PUB"
+            exit 1
+          fi
           echo "::add-mask::$PUB"
           # Persist the public key into a file the next steps read; never echo it.
           echo "$PUB" > ~/.ssh/deploy_key.pub

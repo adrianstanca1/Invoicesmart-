@@ -40,9 +40,11 @@ jobs:
 
       - name: Resolve deploy targets
         id: targets
+        env:
+          DOMAIN: ${{ inputs.domain_override || vars.VPS_DOMAIN }}
+          HOST: ${{ inputs.host_override || secrets.VPS_HOST }}
+          KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
-          DOMAIN="${{ inputs.domain_override || vars.VPS_DOMAIN }}"
-          HOST="${{ inputs.host_override || secrets.VPS_HOST }}"
           if [[ -z "$DOMAIN" ]]; then
             echo "::error::VPS_DOMAIN variable is not set. Either set it under Settings → Variables, or run this workflow manually and pass domain_override."
             exit 1
@@ -51,7 +53,7 @@ jobs:
             echo "::error::VPS_HOST secret is not set. Either set it under Settings → Secrets, or run this workflow manually and pass host_override."
             exit 1
           fi
-          if [[ -z "${{ secrets.VPS_SSH_KEY }}" ]]; then
+          if [[ -z "$KEY" ]]; then
             echo "::error::VPS_SSH_KEY secret is not set. Add it under Settings → Secrets → Actions."
             exit 1
           fi
