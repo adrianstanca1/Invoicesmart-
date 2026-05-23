@@ -23,13 +23,33 @@ const LLMStatus: React.FC = () => {
   };
 
   useEffect(() => {
-    probe();
-    const id = window.setInterval(probe, REFRESH_MS);
-    const onFocus = () => probe();
-    window.addEventListener('focus', onFocus);
+    let cancelled = false;
+    let timerId: number | undefined;
+
+    const scheduleNext = () => {
+      if (document.visibilityState === 'hidden') return;
+      window.clearTimeout(timerId);
+      timerId = window.setTimeout(async () => {
+        if (cancelled) return;
+        await probe();
+        scheduleNext();
+      }, REFRESH_MS);
+    };
+
+    const onFocusOrVisible = () => {
+      if (document.visibilityState === 'hidden') return;
+      probe().then(scheduleNext);
+    };
+
+    onFocusOrVisible();
+    window.addEventListener('focus', onFocusOrVisible);
+    document.addEventListener('visibilitychange', onFocusOrVisible);
+
     return () => {
-      window.clearInterval(id);
-      window.removeEventListener('focus', onFocus);
+      cancelled = true;
+      window.clearTimeout(timerId);
+      window.removeEventListener('focus', onFocusOrVisible);
+      document.removeEventListener('visibilitychange', onFocusOrVisible);
     };
   }, []);
 
