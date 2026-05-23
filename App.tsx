@@ -8,6 +8,8 @@ import {
 } from "react-router-dom";
 import { motion } from "motion/react";
 
+import LLMStatus from "./components/LLMStatus";
+
 const InvoiceBuilder = lazy(() => import("./components/InvoiceBuilder"));
 const Dashboard = lazy(() => import("./components/Dashboard"));
 const ClientManager = lazy(() => import("./components/ClientManager"));
@@ -57,11 +59,12 @@ const NavBar = () => {
   return (
     <nav className="bg-slate-900 text-white p-4 shadow-lg print:hidden">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <div className="bg-blue-600 p-2 rounded-lg">
             <i className="fas fa-bolt text-white"></i>
           </div>
           <span className="font-bold text-xl tracking-tight">FlashInvoice</span>
+          <LLMStatus />
         </div>
         <div className="flex gap-1 overflow-x-auto">
           <Link
