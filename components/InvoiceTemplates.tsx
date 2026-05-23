@@ -19,6 +19,50 @@ interface TemplateProps {
   currencySymbol: (curr: string) => string;
 }
 
+const buildPaymentLink = (invoice: Invoice, amountDue: number): string | null => {
+  if (!invoice.paymentGateway || invoice.paymentGateway === "none") return null;
+  if (invoice.paymentGateway === "stripe") {
+    return invoice.paymentLinkId?.trim() || null;
+  }
+  if (invoice.paymentGateway === "paypal") {
+    const recipient =
+      invoice.paymentLinkId?.trim() || invoice.fromEmail?.trim() || "";
+    if (!recipient) return null;
+    if (/^https?:\/\//i.test(recipient)) {
+      // Full PayPal.me / PayPal Pay link the user pasted as-is.
+      return recipient;
+    }
+    if (recipient.includes("@")) {
+      return `https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=${encodeURIComponent(recipient)}&amount=${amountDue.toFixed(2)}&currency_code=${encodeURIComponent(invoice.currency || "GBP")}&item_name=${encodeURIComponent("Invoice " + invoice.invoiceNumber)}`;
+    }
+    // Treat as a PayPal.me handle (e.g. "myhandle" or "myhandle/100")
+    return `https://paypal.me/${recipient.replace(/^\//, "")}/${amountDue.toFixed(2)}`;
+  }
+  return null;
+};
+
+const PayNowLink: React.FC<{ invoice: Invoice; amountDue: number; brandColor?: string }> = ({
+  invoice,
+  amountDue,
+  brandColor,
+}) => {
+  const link = buildPaymentLink(invoice, amountDue);
+  if (!link || amountDue <= 0) return null;
+  const gateway = invoice.paymentGateway === "stripe" ? "Stripe" : "PayPal";
+  return (
+    <a
+      href={link}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="no-print mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-md text-white text-sm font-semibold shadow hover:opacity-90 transition-opacity"
+      style={{ backgroundColor: brandColor || "#0f172a" }}
+    >
+      <i className="fas fa-credit-card" aria-hidden></i>
+      Pay {gateway === "Stripe" ? "with Stripe" : "with PayPal"}
+    </a>
+  );
+};
+
 export const ModernTemplate: React.FC<TemplateProps> = ({
   invoice,
   calculations,
@@ -256,6 +300,13 @@ export const ModernTemplate: React.FC<TemplateProps> = ({
               {currencySymbol(invoice.currency)}
               {calculations.amountDue.toFixed(2)}
             </span>
+          </div>
+          <div className="flex justify-end">
+            <PayNowLink
+              invoice={invoice}
+              amountDue={calculations.amountDue}
+              brandColor={invoice.brandColor}
+            />
           </div>
         </div>
       </div>
@@ -514,6 +565,9 @@ export const ClassicTemplate: React.FC<TemplateProps> = ({
               {calculations.amountDue.toFixed(2)}
             </span>
           </div>
+          <div className="px-4 flex justify-end">
+            <PayNowLink invoice={invoice} amountDue={calculations.amountDue} />
+          </div>
         </div>
       </div>
 
@@ -727,6 +781,9 @@ export const MinimalTemplate: React.FC<TemplateProps> = ({
               {currencySymbol(invoice.currency)}
               {calculations.amountDue.toFixed(2)}
             </span>
+          </div>
+          <div className="flex justify-end">
+            <PayNowLink invoice={invoice} amountDue={calculations.amountDue} />
           </div>
         </div>
       </div>

@@ -28,7 +28,7 @@ export const getAIConfig = (): AIProviderConfig => {
 const stripCodeFences = (text: string): string =>
   text.replace(/^\s*```(?:json|JSON)?\s*/m, "").replace(/```\s*$/m, "").trim();
 
-const extractJson = (raw: string): string => {
+export const extractJson = (raw: string): string => {
   const cleaned = stripCodeFences(raw);
   const firstBrace = cleaned.search(/[{\[]/);
   if (firstBrace === -1) return cleaned;
@@ -61,7 +61,7 @@ const extractJson = (raw: string): string => {
   return cleaned.slice(firstBrace);
 };
 
-const safeParseJson = <T>(raw: string): T | null => {
+export const safeParseJson = <T>(raw: string): T | null => {
   try {
     return JSON.parse(extractJson(raw)) as T;
   } catch (e) {
@@ -82,7 +82,7 @@ const buildHeaders = (apiKey?: string): Record<string, string> => {
   return headers;
 };
 
-const isOpenAICompatible = (endpoint: string): boolean =>
+export const isOpenAICompatible = (endpoint: string): boolean =>
   /\/v1\/?$/.test(endpoint) || /\/v1\//.test(endpoint) || endpoint.includes("/openai");
 
 const callOpenAICompatible = async (
