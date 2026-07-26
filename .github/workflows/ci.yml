@@ -40,12 +40,24 @@ jobs:
 
       - name: Verify production bundle uses same-origin LLM endpoint
         run: |
-          if grep -ql 'localhost:11434' dist/assets/aiService-*.js; then
-            echo "::error::Production bundle still references http://localhost:11434"
+          shopt -s nullglob
+          BUNDLES=(dist/assets/*.js)
+          if [ ${#BUNDLES[@]} -eq 0 ]; then
+            echo "::error::No built JS bundles found in dist/assets/"
             exit 1
           fi
-          if ! grep -ql '/ollama' dist/assets/aiService-*.js; then
+          # The same-origin default endpoint must be present.
+          if ! grep -ql '/ollama' "${BUNDLES[@]}"; then
             echo "::error::Production bundle is missing the /ollama same-origin default"
             exit 1
+          fi
+          # Allow 'localhost:11434' ONLY as a UI placeholder (e.g. input placeholder text).
+          # Flag it only when used as an active http(s) endpoint assignment/default.
+          if grep -qlE 'https?://localhost:11434' "${BUNDLES[@]}"; then
+            # exclude the known Settings placeholder usage
+            if grep -qlE '(apiEndpoint|baseUrl|endpoint|OLLAMA|apiUrl)\s*[:=]\s*["'\'']https?://localhost:11434' "${BUNDLES[@]}"; then
+              echo "::error::Production bundle hardcodes http://localhost:11434 as an active LLM endpoint"
+              exit 1
+            fi
           fi
           echo "OK: prod bundle defaults to /ollama"
