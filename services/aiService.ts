@@ -8,7 +8,7 @@ import {
   AIProviderConfig,
 } from "../types";
 
-const DEFAULT_ENDPOINT = import.meta.env.PROD ? "/ollama" : "http://localhost:11434";
+const DEV_ENDPOINT = import.meta.env.PROD ? "/ollama" : "http://localhost:11434";
 const DEFAULT_MODEL = "llama3.2-vision:11b";
 
 export const getAIConfig = (): AIProviderConfig => {
@@ -17,11 +17,11 @@ export const getAIConfig = (): AIProviderConfig => {
     return {
       provider: "local",
       model: settings.aiModel || DEFAULT_MODEL,
-      endpoint: settings.aiEndpoint || DEFAULT_ENDPOINT,
+      endpoint: settings.aiEndpoint || DEV_ENDPOINT,
       apiKey: settings.aiApiKey || undefined,
     };
   } catch {
-    return { provider: "local", model: DEFAULT_MODEL, endpoint: DEFAULT_ENDPOINT };
+    return { provider: "local", model: DEFAULT_MODEL, endpoint: DEV_ENDPOINT };
   }
 };
 
@@ -90,7 +90,7 @@ const callOpenAICompatible = async (
   prompt: string,
   opts: InvokeOptions,
 ): Promise<string | null> => {
-  const base = (config.endpoint || DEFAULT_ENDPOINT).replace(/\/+$/, "");
+  const base = (config.endpoint || DEV_ENDPOINT).replace(/\/+$/, "");
   const url = base.endsWith("/v1") ? `${base}/chat/completions` : `${base}/v1/chat/completions`;
 
   const userContent: any[] = [{ type: "text", text: prompt }];
@@ -130,7 +130,7 @@ const callOllama = async (
   prompt: string,
   opts: InvokeOptions,
 ): Promise<string | null> => {
-  const base = (config.endpoint || DEFAULT_ENDPOINT).replace(/\/+$/, "");
+  const base = (config.endpoint || DEV_ENDPOINT).replace(/\/+$/, "");
   const url = `${base}/api/generate`;
 
   const fullPrompt = opts.systemPrompt ? `${opts.systemPrompt}\n\n${prompt}` : prompt;
@@ -179,7 +179,7 @@ const invokeLLM = async (
 export const checkLLMConnection = async (): Promise<{ ok: boolean; message: string }> => {
   const config = getAIConfig();
   try {
-    const base = (config.endpoint || DEFAULT_ENDPOINT).replace(/\/+$/, "");
+    const base = (config.endpoint || DEV_ENDPOINT).replace(/\/+$/, "");
     if (isOpenAICompatible(base)) {
       const tagsUrl = base.endsWith("/v1") ? `${base}/models` : `${base}/v1/models`;
       const res = await fetch(tagsUrl, { headers: buildHeaders(config.apiKey) });
