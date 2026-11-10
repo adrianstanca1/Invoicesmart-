@@ -51,12 +51,16 @@ export default defineConfig(() => {
         chunkSizeWarningLimit: 1100,
         rollupOptions: {
           output: {
-            manualChunks: {
-              'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-              'charts': ['recharts'],
-              'pdf-jspdf': ['jspdf', 'jspdf-autotable'],
-              'pdf-html2pdf': ['html2pdf.js'],
-              'motion': ['motion'],
+            // Vite 8 (Rolldown) only accepts manualChunks as a function.
+            manualChunks(id: string) {
+              if (!id.includes('node_modules')) return;
+              const inPkg = (...names: string[]) =>
+                names.some((n) => id.includes(`/node_modules/${n}/`));
+              if (inPkg('react', 'react-dom', 'react-router-dom')) return 'react-vendor';
+              if (inPkg('recharts')) return 'charts';
+              if (inPkg('jspdf', 'jspdf-autotable')) return 'pdf-jspdf';
+              if (inPkg('html2pdf.js')) return 'pdf-html2pdf';
+              if (inPkg('motion')) return 'motion';
             },
           },
         },
